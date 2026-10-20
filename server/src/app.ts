@@ -1,9 +1,11 @@
 import express, { type Express } from "express";
+import { corsMiddleware } from "./middleware/cors";
 import healthRoutes from "./routes/health.routes";
 
 export function createApp(): Express {
   const app: Express = express();
 
+  app.use(corsMiddleware);
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
