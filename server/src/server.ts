@@ -1,18 +1,16 @@
-import "dotenv/config";
 import type { Server } from "node:http";
 import { createApp } from "./app";
-
-const PORT: number = Number(process.env.PORT ?? 3000);
+import { env } from "./config/env";
 
 const app = createApp();
 
-const server: Server = app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
+const server: Server = app.listen(env.PORT, () => {
+  console.log(`Server listening on http://localhost:${env.PORT}`);
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {
-    console.error(`Port ${PORT} is already in use.`);
+    console.error(`Port ${env.PORT} is already in use.`);
   } else {
     console.error("Server failed to start:", error);
   }
