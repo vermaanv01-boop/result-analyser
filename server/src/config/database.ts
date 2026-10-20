@@ -47,6 +47,10 @@ function attachConnectionListeners(): void {
   });
 }
 
+export function getDatabaseState(): string {
+  return CONNECTION_STATES[mongoose.connection.readyState] ?? "unknown";
+}
+
 export function connectDatabase(): Promise<typeof mongoose> {
   if (connectionPromise) {
     return connectionPromise;
