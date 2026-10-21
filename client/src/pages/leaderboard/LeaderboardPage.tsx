@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { api } from "../../services/api";
 import type {
   Competition,
@@ -134,11 +135,13 @@ export const LeaderboardPage: React.FC = () => {
           marginBottom: "24px",
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
-            <h1 style={{ fontSize: "28px", color: "var(--color-navy)", margin: 0 }}>
-              Live Competition Leaderboard
-            </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <KARVAANLogo size="md" variant="dark" showText={false} />
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+              <h1 style={{ fontSize: "28px", color: "var(--color-navy)", margin: 0 }}>
+                Live Competition Leaderboard
+              </h1>
             <span
               style={{
                 display: "inline-flex",
@@ -170,6 +173,7 @@ export const LeaderboardPage: React.FC = () => {
             Real-time standardized scores, multi-judge aggregation, and deterministic standings.
           </p>
         </div>
+      </div>
 
         {/* Live Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -330,7 +334,10 @@ export const LeaderboardPage: React.FC = () => {
 
       {/* Print View Header Only */}
       <div className="only-print" style={{ display: "none", marginBottom: "20px" }}>
-        <h1 style={{ fontSize: "22px" }}>{currentCompetition?.name} — Official Leaderboard</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+          <KARVAANLogo size="sm" variant="dark" showText={false} />
+          <h1 style={{ fontSize: "22px", margin: 0 }}>{currentCompetition?.name} — Official Leaderboard</h1>
+        </div>
         <p style={{ fontSize: "12px", color: "#666" }}>
           Scope: {selectedRound === "overall" ? "Overall Aggregate" : `Round ${selectedRound}`} | Generated:{" "}
           {lastRefreshedAt.toLocaleString()}
