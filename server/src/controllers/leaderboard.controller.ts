@@ -1,6 +1,7 @@
 import type { NextFunction, Response } from "express";
 import type { ValidatedRequest } from "../middleware/validate";
 import { getLeaderboard } from "../services/leaderboard.service";
+import type { RoundIdentifier } from "../types/domain.types";
 import type {
   competitionIdParamsSchema,
   roundParamsSchema,
@@ -26,8 +27,9 @@ export async function getRoundLeaderboardHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const roundNumber = (req.params.round === "1" ? 1 : 2) as RoundIdentifier;
     const result = await getLeaderboard(req.params.competitionId, {
-      round: req.params.round,
+      round: roundNumber,
     });
     res.status(200).json(result);
   } catch (error) {

@@ -89,7 +89,7 @@ export interface CreateUserData {
   email: string;
   password: string;
   role: UserRole;
-  isActive?: boolean;
+  isActive?: boolean | undefined;
 }
 
 export async function provisionUser(data: CreateUserData): Promise<AuthenticatedUser> {

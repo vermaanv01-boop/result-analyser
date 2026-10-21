@@ -7,6 +7,7 @@ import {
   updateCompetition,
   updateRoundStatus,
 } from "../services/competition.service";
+import type { RoundIdentifier } from "../types/domain.types";
 import type {
   competitionIdParamsSchema,
   createCompetitionSchema,
@@ -82,9 +83,10 @@ export async function updateRoundStatusHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const roundNumber = (req.params.round === "1" ? 1 : 2) as RoundIdentifier;
     const rounds = await updateRoundStatus(
       req.params.competitionId,
-      req.params.round,
+      roundNumber,
       req.body.status,
     );
     res.status(200).json({ rounds });

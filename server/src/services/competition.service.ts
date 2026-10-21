@@ -2,28 +2,51 @@ import {
   Competition,
   type CompetitionDocument,
   type CompetitionRound,
-  type CompetitionScoringPolicy,
   type CompetitionStatus,
   type RoundStatus,
+  type ScoringTotalSource,
 } from "../models/competition.model";
 import type { AuthenticatedUser } from "../types/auth.types";
 import type { RoundIdentifier } from "../types/domain.types";
 import { ApiError } from "../utils/api-error";
+
+export interface CompetitionScoringPolicyInput {
+  totalSource?: ScoringTotalSource | undefined;
+  fixedTotal?: number | null | undefined;
+  normalization?: {
+    method?: string | null | undefined;
+    parameters?: Record<string, unknown> | undefined;
+  } | undefined;
+  aggregation?: {
+    method?: string | null | undefined;
+    parameters?: Record<string, unknown> | undefined;
+  } | undefined;
+  weightage?: {
+    method?: string | null | undefined;
+    parameters?: Record<string, unknown> | undefined;
+  } | undefined;
+}
 
 export async function createCompetition(
   creator: AuthenticatedUser,
   data: {
     name: string;
     description?: string | null | undefined;
-    scoringPolicy?: CompetitionScoringPolicy | undefined;
+    scoringPolicy?: CompetitionScoringPolicyInput | undefined;
   },
 ): Promise<CompetitionDocument> {
   const competition = new Competition({
     name: data.name.trim(),
     description: data.description?.trim() ?? null,
     createdBy: creator.id,
-    ...(data.scoringPolicy ? { scoringPolicy: data.scoringPolicy } : {}),
   });
+
+  if (data.scoringPolicy?.totalSource) {
+    competition.scoringPolicy.totalSource = data.scoringPolicy.totalSource;
+  }
+  if (data.scoringPolicy?.fixedTotal !== undefined) {
+    competition.scoringPolicy.fixedTotal = data.scoringPolicy.fixedTotal;
+  }
 
   await competition.save();
   return competition;
@@ -49,7 +72,7 @@ export async function updateCompetition(
     name?: string | undefined;
     description?: string | null | undefined;
     status?: CompetitionStatus | undefined;
-    scoringPolicy?: CompetitionScoringPolicy | undefined;
+    scoringPolicy?: CompetitionScoringPolicyInput | undefined;
   },
 ): Promise<CompetitionDocument> {
   const competition = await Competition.findById(id);
@@ -67,7 +90,12 @@ export async function updateCompetition(
     competition.status = data.status;
   }
   if (data.scoringPolicy !== undefined) {
-    competition.scoringPolicy = data.scoringPolicy;
+    if (data.scoringPolicy.totalSource !== undefined) {
+      competition.scoringPolicy.totalSource = data.scoringPolicy.totalSource;
+    }
+    if (data.scoringPolicy.fixedTotal !== undefined) {
+      competition.scoringPolicy.fixedTotal = data.scoringPolicy.fixedTotal;
+    }
   }
 
   await competition.save();
