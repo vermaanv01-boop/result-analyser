@@ -15,7 +15,7 @@ Last updated: 2026-10-21
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Backend foundation (infrastructure layer)
-- **Overall completion status:** 10 of 21 tracked tasks completed = **48%** (calculated from explicitly tracked tasks in sections C and E; does not include untracked polish work)
+- **Overall completion status:** 11 of 21 tracked tasks completed = **52%** (calculated from explicitly tracked tasks in sections C and E; does not include untracked polish work)
 
 ---
 
@@ -43,10 +43,16 @@ student-ranking-system/
 │   │   ├── routes/
 │   │   │   └── health.routes.ts # GET /live and /ready handlers
 │   │   ├── middleware/
-│   │   │   └── cors.ts          # Centralized env-driven CORS policy
+│   │   │   ├── cors.ts          # Centralized env-driven CORS policy
+│   │   │   ├── error-handler.ts # Global error handler (last middleware) + error normalization
+│   │   │   └── not-found.ts     # Unmatched-route handler (delegates to the error handler)
 │   │   ├── models/
 │   │   │   └── user.model.ts     # User schema/model (roles: admin, judge, participant)
-│   │   ├── controllers/  services/  validators/  utils/  types/   # empty placeholders
+│   │   ├── utils/
+│   │   │   └── api-error.ts      # ApiError class + ERROR_CODES registry
+│   │   ├── types/
+│   │   │   └── api.types.ts      # Error response contract types
+│   │   ├── controllers/  services/  validators/   # empty placeholders
 │   │   ├── app.ts           # createApp(): Express composition, no side effects
 │   │   └── server.ts        # entry point: DB connect → listen → graceful shutdown
 │   ├── .env.example         # placeholder env values
@@ -67,11 +73,13 @@ student-ranking-system/
 - `server/src/config/env.ts` — loads `dotenv`, validates with Zod, exports a frozen `env` object; the only module permitted to read `process.env`.
 - `server/src/config/database.ts` — Mongoose default-connection lifecycle: idempotent `connectDatabase()`, `disconnectDatabase()`, `getDatabaseState()`, lifecycle event listeners, credential-redacted logging.
 - `server/src/routes/` — route definitions grouped by feature; mounted under versioned prefixes in `app.ts`.
-- `server/src/middleware/` — cross-cutting Express middleware; CORS policy lives solely in `middleware/cors.ts` (mounted first in `app.ts`).
+- `server/src/middleware/` — cross-cutting Express middleware; CORS policy lives solely in `middleware/cors.ts` (mounted first in `app.ts`); `middleware/not-found.ts` and `middleware/error-handler.ts` are mounted last and define the global error contract.
+- `server/src/utils/api-error.ts` — the `ApiError` primitive and the `ERROR_CODES` registry; the only sanctioned way for application code to raise an HTTP error with a specific status/code.
+- `server/src/types/api.types.ts` — TypeScript types for the JSON error response envelope.
 - `server/src/models/` — Mongoose schemas/models; one file per aggregate, re-exporting typed documents and the named model.
 - `client/` — not yet implemented (placeholder files only).
 
-Section updated: 2026-10-21 (added `server/src/routes/health.routes.ts`, `server/.env.example`, `server/src/models/user.model.ts`, `server/src/middleware/cors.ts`).
+Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `server/src/middleware/not-found.ts`, `server/src/utils/api-error.ts`, `server/src/types/api.types.ts`).
 
 ---
 
@@ -187,6 +195,41 @@ Section updated: 2026-10-21 (added `server/src/routes/health.routes.ts`, `server
 - **Completion date:** 2026-10-21
 - **Known limitations:** production origins are limited to the single `CLIENT_ORIGIN` value (multi-origin production would require extending the env schema); loopback allowance is disabled when `NODE_ENV=production`; not covered by automated tests.
 
+### T-11 — Global error-handling middleware, 404 handler, and consistent error response contract (P-03)
+
+- **Implementation summary:**
+  - **Error envelope** — every failure returns the same JSON shape, nested under a top-level `error` key so it can never be confused with a success payload:
+    ```json
+    { "error": { "status": 404, "code": "NOT_FOUND", "message": "Route GET /api/v1/does-not-exist not found", "path": "/api/v1/does-not-exist", "timestamp": "2026-10-21T16:31:37.488Z" } }
+    ```
+    `status` = HTTP status, `code` = machine-readable code, `message` = human-readable and safe to display, `path` = request path **without** the query string, `timestamp` = ISO-8601. Optional `details` (structured context, e.g. per-field validation messages) and `stack` (debug only).
+  - **`server/src/utils/api-error.ts`** — `ERROR_CODES` const registry (`BAD_REQUEST`, `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `INTERNAL_SERVER_ERROR`) with the derived `ErrorCode` type; `defaultCodeForStatus(status)`; and the `ApiError` class (extends `Error`) carrying `status`, `code`, `details`, and optional `cause`, plus static factories `badRequest` / `unauthorized` / `forbidden` / `notFound` / `conflict`. This is the only sanctioned way for application code to raise a specific HTTP error.
+  - **`server/src/middleware/not-found.ts`** — `notFoundHandler` converts an unmatched route into `next(new ApiError(404, "Route <METHOD> <path> not found"))`; it does **not** write a response itself, so all 404s flow through the single error-handler path.
+  - **`server/src/middleware/error-handler.ts`** — `errorHandler` (Express 4-arity `ErrorRequestHandler`) normalizes any thrown value into `NormalizedError` and emits the envelope. Mapping order: `ApiError` → its own status/code/message/details; body-parser errors (`entity.parse.failed`→400, `entity.too.large`→413, `charset.unsupported`/`encoding.unsupported`→415, `request.aborted`/`request.size.invalid`→400, `parameters.too.many`→413); Mongoose `ValidationError`→400 `VALIDATION_ERROR` with per-field `details`; Mongoose `CastError`→400 `BAD_REQUEST`; Mongo duplicate key (`code === 11000`)→409 `CONFLICT`; any other error carrying a 4xx `status`/`statusCode` → that status with a generic message; everything else → 500 `INTERNAL_SERVER_ERROR`.
+  - **Information-disclosure rules (enforced in code, verified at runtime):** all 5xx responses use the fixed message `"Internal server error"` and **omit `details`** entirely; `stack` is included only when `NODE_ENV !== "production"`; 4xx messages are either author-written (`ApiError`), schema-derived (Mongoose), or fixed generic strings — never raw internal messages. 5xx are logged with the full original error (including stack) via `console.error`; 4xx are logged concisely via `console.warn`.
+  - **Mounting** — `app.ts` now ends with `app.use(notFoundHandler); app.use(errorHandler);` after the `/api/v1/health` router. Existing order (CORS → body parsers → routers) is unchanged, and the documented T-06 health contract is untouched (health payloads contain no `error` key).
+  - **`server/src/types/api.types.ts`** — `ErrorPayload` / `ErrorResponseBody` interfaces describing the envelope.
+- **Files created/modified:** `server/src/utils/api-error.ts` (new), `server/src/types/api.types.ts` (new), `server/src/middleware/not-found.ts` (new), `server/src/middleware/error-handler.ts` (new), `server/src/app.ts` (mount both handlers)
+- **Dependencies added:** none
+- **Verification commands:** `npm run typecheck`, `npm run build`, runtime probe against the built `dist/` (19 assertions, run under both `NODE_ENV=development` and `NODE_ENV=production`)
+- **Verification results:**
+  - `npm run typecheck` — clean; `npm run build` — clean
+  - probe result: **19 passed / 0 failed in development; 19 passed / 0 failed in production**
+  - `GET /api/v1/health/live` → 200 and `GET /api/v1/health/ready` → 503, both with the **unchanged** T-06 health contract (no `error` key added)
+  - `GET /api/v1/does-not-exist` → **404** `{"error":{"status":404,"code":"NOT_FOUND","message":"Route GET /api/v1/does-not-exist not found","path":"/api/v1/does-not-exist","timestamp":"..."}}`, `Content-Type: application/json; charset=utf-8`
+  - `path` field excludes the query string (`/api/v1/does-not-exist?token=abc&x=1` → `path: "/api/v1/does-not-exist"`)
+  - `POST /api/v1/echo` with malformed JSON → **400** `BAD_REQUEST` "Malformed request body"
+  - `POST /api/v1/echo` with a 200 KB body → **413** `PAYLOAD_TOO_LARGE`
+  - thrown `ApiError(409, …, { code: "CONFLICT", details: { field: "email" } })` → **409** with status/code/message/details preserved
+  - thrown plain `Error("internal secret: mongodb://user:hunter2@host/db")` → **500** `INTERNAL_SERVER_ERROR`, `message: "Internal server error"`; in production the raw body contains neither `hunter2` nor `mongodb://` and no stack frames
+  - `ApiError(500, …, { details: { upstream: "mongodb://user:hunter2@host/db" } })` → **500** with `details` omitted (5xx never carry details)
+  - Mongoose `ValidationError` → **400** `VALIDATION_ERROR`, `details: { "email": "email is required" }`
+  - Mongoose `CastError` → **400** `BAD_REQUEST`; Mongo duplicate key (`code: 11000`) → **409** `CONFLICT`; rejected promise → **500**
+  - CORS unaffected: 404 on `http://localhost:5173` still carries `Access-Control-Allow-Origin`; 404 on `https://evil.example` carries **no** CORS headers; preflight `OPTIONS` on an unknown route still returns **204**
+  - `stack` present in development, absent in production (asserted in both modes)
+- **Completion date:** 2026-10-21
+- **Known limitations:** the probe was a throwaway script (not committed) — there is still no automated test suite (P-10); `payload` limit is body-parser's default 100 KB (not yet configurable via env); error responses are not yet documented in `docs/` (P-11); Mongo/Mongoose error mapping is duck-typed on `code === 11000` and `instanceof mongoose.Error.*` rather than on driver-level error classes.
+
 ---
 
 ## D. In-Progress Tasks
@@ -201,7 +244,6 @@ _None. No task is currently started but unfinished._
 |----|------|---------------|
 | P-01 | Remaining Mongoose domain models (evaluation/submission, ranking-related entities — exact entities TBD by requirements; foundational User model done in T-09) | T-04, T-09 |
 | P-02 | Request validation layer (Zod schemas in `server/src/validators/`) | T-03 |
-| P-03 | Global error-handling middleware + 404 handler + consistent error response contract | T-02 |
 | P-05 | Authentication/authorization (roles: admin, judge) | P-01, P-03 |
 | P-06 | Evaluation/submission REST API under `/api/v1` (controllers + routes) | P-01, P-02, P-05 |
 | P-07 | Ranking/scoring engine — **scoring rules not yet approved; must be specified before implementation** | P-01, P-06 |
@@ -211,7 +253,7 @@ _None. No task is currently started but unfinished._
 | P-11 | Documentation: README content, `docs/` API reference | parallel |
 | P-12 | CI/lint tooling (ESLint/Prettier) — none configured | parallel |
 
-Tracked tasks: 10 completed (T-01…T-10, including P-04 delivered as T-10) + 11 pending = 21 → **48% complete**.
+Tracked tasks: 11 completed (T-01…T-11, including P-04 delivered as T-10 and P-03 delivered as T-11) + 10 pending = 21 → **52% complete**.
 
 ---
 
@@ -230,6 +272,10 @@ Recorded only from decisions made in this project's implementation sessions.
 - **API conventions:** versioned JSON API prefix `/api/v1`; feature-grouped routers in `server/src/routes/`, mounted in `app.ts`; health contract as specified in T-06 (lowercase `status`, ISO-8601 `timestamp`).
 - **CORS policy (T-10):** single policy module `middleware/cors.ts`; allowlist = `env.CLIENT_ORIGIN` + non-production loopback origins; explicit methods/headers lists; `credentials: false`; disallowed origins get no CORS headers; mounted first in `createApp()`; CORS is a browser policy only, never an auth mechanism.
 - **User model (T-09):** roles exported as `USER_ROLES` const array (`admin`, `judge`, `participant`); `passwordHash` uses `select: false` (retrievable explicitly for future auth); email uniqueness via schema `unique: true`; duplicate model registration guarded with `models.User ?? model(...)` for `tsx watch` reloads; no hashing logic in the model.
+- **Error contract (T-11):** all failures return `{ "error": { status, code, message, path, timestamp, details?, stack? } }`; the `error` key nests errors so they can never be mistaken for a success payload; `code` is a stable machine-readable string from the `ERROR_CODES` registry; `path` never includes the query string; `timestamp` is ISO-8601 (consistent with the health contract).
+- **Error raising (T-11):** application code raises HTTP errors exclusively via `ApiError` (`utils/api-error.ts`); the error handler maps untyped errors (body-parser, Mongoose, Mongo) into the same envelope so no route can bypass the contract.
+- **Information disclosure (T-11):** 5xx responses always use the fixed message `"Internal server error"` and never carry `details`; `stack` is emitted only when `NODE_ENV !== "production"`; 4xx messages are author-written or fixed generic strings. Server-side logs keep the full error (5xx via `console.error` with the original error object).
+- **Middleware order (T-11):** CORS → body parsers → feature routers → `notFoundHandler` → `errorHandler` (must be last); the 404 handler delegates to the error handler via `next(err)` so there is exactly one response-writing path.
 - **Scoring rules:** none defined or approved yet. (No scoring/ranking rules have been specified; do not assume any.)
 
 ---
@@ -240,23 +286,26 @@ Recorded only from decisions made in this project's implementation sessions.
 2. **Startup/health tension:** `server.ts` aborts startup when the DB is unreachable, so under normal bootstrap the readiness endpoint cannot be reached during a total outage. Readiness 503 was verified via a direct `createApp()` harness (no DB connect). A decision is needed on whether readiness should be observable during DB outage (would require decoupling listener startup from DB connect).
 3. ~~**`CLIENT_ORIGIN` is validated but unused**~~ — **resolved by T-10** (CORS middleware now consumes it). Remaining gap: only a single production origin is supported.
 4. **`.gitignore` line 1 ignores `.env.example`** — pre-existing rule, deliberately preserved; example env files are therefore not tracked in git.
-5. **Health-check changes are uncommitted** — `server/src/app.ts` and `server/src/config/database.ts` modified, `server/src/routes/` untracked (git status as of 2026-10-21).
-6. **No automated tests, linter, or CI** — verification is manual (`typecheck`, `build`, ad-hoc runtime probes).
+5. ~~**Health-check changes are uncommitted**~~ — **resolved as of 2026-10-21:** the working tree was clean and `main` was up to date with `origin/main` at `eac75a8` ("backend intialize") when work resumed. The new T-11 changes are likewise **not yet committed** (git status: `PROJECT_PROGRESS.md` and `server/src/app.ts` modified; `server/src/middleware/error-handler.ts`, `server/src/middleware/not-found.ts`, `server/src/types/api.types.ts`, `server/src/utils/api-error.ts` untracked).
+6. **No automated tests, linter, or CI** — verification is manual (`typecheck`, `build`, ad-hoc runtime probes). The T-11 probe was a throwaway script run from the OS temp directory and was not committed, so the 19 error-contract assertions are **not** re-runnable from the repo.
 7. **`client/` is entirely placeholder** — empty `package.json`/`tsconfig.json`/`vite.config.ts`/`App.tsx`/`main.tsx`; no dependencies installed; not verified in any way.
-8. **Empty `README.md` and `docs/`** — no developer onboarding or API documentation.
-9. **No error-handling middleware** — any thrown handler error currently falls back to Express defaults (unstructured HTML error response).
+8. **Empty `README.md` and `docs/`** — no developer onboarding or API documentation. The new error envelope is not yet documented there (P-11).
+9. ~~**No error-handling middleware**~~ — **resolved by T-11** (global error handler + 404 handler + consistent error envelope). Remaining gap: the contract is not covered by automated tests (P-10) and is not yet written up in `docs/` (P-11).
 10. **User email unique index unverified at the database level** — `unique: true` is declared in the schema (T-09), but index creation/enforcement could not be confirmed because no MongoDB instance is available.
+11. **Mongoose/Mongo error mapping is duck-typed** — duplicate-key detection relies on `code === 11000` and validation/cast detection on `instanceof mongoose.Error.*`. A driver-level error class check would be stricter, but the current approach was verified to work with the installed `mongoose@9.11.2`.
+12. **Request body size limit is implicit** — body-parser's default 100 KB applies; it is not yet configurable through `env.ts`. Exceeding it now returns a well-formed 413 `PAYLOAD_TOO_LARGE`, but the limit cannot be tuned per environment.
 
 ---
 
 ## H. Next Recommended Task
 
-**P-03 — Global error-handling middleware + 404 handler + consistent error response contract** (`server/src/middleware/`).
+**P-02 — Request validation layer (Zod schemas in `server/src/validators/`)**
 
-- *Why next:* prerequisite for all controllers (P-05, P-06), closes known issue G-9, and follows the existing middleware-module convention established in T-10.
-- *Alternative:* P-01 remainder (evaluation/submission domain models) if continuing data-layer work.
-- *Prerequisites:* T-02 (done).
-- *Verification for the next step:* `npm run typecheck`, `npm run build`, runtime probe (unknown route → structured 404; thrown error → structured 500 JSON without stack traces in production); update this document in the same session.
+- *Why next:* it is the last remaining prerequisite shared by P-05 and P-06. `zod@4.6.7` is already installed and `config/env.ts` already establishes the Zod pattern, so request-body/query validation can reuse the same idioms as the env schema. It also closes the loop opened by T-11: validator failures should be converted into `ApiError(400, …, { code: "VALIDATION_ERROR", details })` so they render through the same error envelope as every other failure.
+- *Also worth doing in the same session:* wire a shared `validate` middleware helper into `server/src/middleware/` that takes a Zod schema and the request part to parse, and normalizes `ZodError` into the `details` shape already used by the Mongoose `ValidationError` mapping (per-field messages), so clients see one validation shape regardless of the source.
+- *Alternative:* P-01 remainder (evaluation/submission domain models) if continuing data-layer work — but note this still needs the domain entities and scoring-related fields specified, so it is less well-defined than P-02.
+- *Prerequisites:* T-03 (done), T-11 (done — gives the error contract the validator will throw into).
+- *Verification for the next step:* `npm run typecheck`, `npm run build`, runtime probe (valid body → passes through; invalid body → 400 `VALIDATION_ERROR` with per-field `details` and the standard envelope; malformed JSON → still 400 `BAD_REQUEST` from body-parser, not double-reported); update this document in the same session.
 
 ---
 
