@@ -12,7 +12,7 @@ import {
   type ModelName,
   type RoundIdentifier,
 } from "../types/domain.types";
-import { positiveNumberValidator } from "../utils/validation";
+import { positiveNumberOrNullValidator } from "../utils/validation";
 import type { UserDocument } from "./user.model";
 
 export const COMPETITION_STATUSES = [
@@ -222,7 +222,7 @@ const scoringPolicyDefinition = {
   fixedTotal: {
     type: Number,
     default: null,
-    validate: positiveNumberValidator,
+    validate: positiveNumberOrNullValidator,
   },
   normalization: {
     type: scoringStrategySchema,
