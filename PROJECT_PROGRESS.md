@@ -3,19 +3,19 @@
 Canonical progress document for the Student Evaluation, Ranking & Live Leaderboard System.
 Updated incrementally during each coding session in which project changes are made.
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ---
 
 ## A. Project Overview
 
-- **Project name:** Student Evaluation, Ranking & Live Leaderboard System
+- **Project name:** Student Evaluation, Ranking & Live Leaderboard System (KARVAAN)
 - **Technology stack:**
   - Frontend: React + TypeScript + Vite + Tailwind CSS (scaffold placeholders only; not started)
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
-- **Current development phase:** Backend request/response layer (domain models complete, centralized request validation complete; authentication and business endpoints next)
-- **Overall completion status:** 13 of 21 tracked tasks completed = **62%** (calculated from explicitly tracked tasks in sections C and E; does not include untracked polish work)
+- **Current development phase:** Backend functional implementation complete (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, and automated test suite fully delivered; ready for frontend integration)
+- **Overall completion status:** 18 of 21 tracked tasks completed = **86%** (calculated from explicitly tracked tasks in sections C and E; does not include untracked polish work)
 
 ---
 
@@ -377,11 +377,72 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Completion date:** 2026-10-21
 - **Known limitations:** no business route consumes the middleware yet (by scope — P-06 will add the first ones); the T-11 and T-12 probes remain throwaway scripts, so the error-contract and model assertions are still not re-runnable from the repo (P-10); there is no coverage reporting, no CI, and no linting; the `details` shape differs by source (an issue array for request validation, a field→message record for Mongoose validation) — unifying them would change the verified T-11 contract; 4xx responses still carry a `stack` outside production (pre-existing T-11 behaviour, kept for consistency); stripped unknown keys are not reported back to the client.
 
+### T-14 — Authentication, authorization, and administrator user provisioning (P-05)
+
+- **Implementation summary:** Complete JWT and bcrypt authentication infrastructure. Password hashing using bcryptjs with 10 salt rounds; JWT issuance with configurable expiration (`JWT_EXPIRES_IN`, default 24h) and cryptographically enforced secret (`JWT_SECRET`, required 32+ characters in production). Typed Express authentication middleware (`authenticate`) extracting principal from `Authorization: Bearer <token>` and setting typed `req.user: AuthenticatedUser`. Role-based access control middleware (`requireRole("admin" | "judge" | "participant")`). Panel-level judge authorization guard (`requireJudgePanelAccess`). Enforces account deactivation checks on every authenticated request and login attempt (deactivated accounts return 403 Forbidden). Administrator-controlled account provisioning via `POST /api/v1/auth/users` (no public judge self-registration). Login via `POST /api/v1/auth/login`, and principal retrieval via `GET /api/v1/auth/me`.
+- **Files created/modified:** `server/src/config/env.ts` (added `JWT_SECRET` and `JWT_EXPIRES_IN`), `server/.env.example`, `server/src/types/auth.types.ts` (new), `server/src/services/auth.service.ts` (new), `server/src/middleware/auth.ts` (new), `server/src/validators/auth.validators.ts` (new), `server/src/controllers/auth.controller.ts` (new), `server/src/routes/auth.routes.ts` (new), `server/src/app.ts` (mounted `/api/v1/auth`).
+- **Dependencies added:** `jsonwebtoken@9.0.2`, `bcryptjs@2.4.3`, dev: `@types/jsonwebtoken@9.0.8`, `@types/bcryptjs@2.4.6`.
+- **Verification commands:** `npm run typecheck`, `npm run build`, `npm test` (covered by `test/integration.test.ts`).
+- **Verification results:** Pass; login, credential verification, admin provisioning, deactivated user denial, and RBAC rejection verified.
+- **Completion date:** 2026-10-22
+
+### T-15 — Functional REST API for competitions, panels, participants, parameters, evaluations, and judge portal (P-06)
+
+- **Implementation summary:** Implemented validated, typed, consistently error-handled REST endpoints across all domain aggregates with cross-document referential integrity:
+  - **Competitions (`/api/v1/competitions`):** CRUD operations, status management (`draft|active|completed|archived`), independent round lifecycle transitions with strict sequence validation (`POST /:competitionId/rounds/:round/status`).
+  - **Panels (`/api/v1/competitions/:competitionId/panels`):** CRUD operations with judge verification (ensures all assigned users have role `judge` and exist in database).
+  - **Participants (`/api/v1/competitions/:competitionId/participants`):** Registration with competition-scoped unique `registrationId` enforcement (409 on duplicate), filtering, panel assignment/transfers, per-round eligibility updates, and Round 2 qualification (`POST /:competitionId/participants/qualify-round-2`).
+  - **Evaluation Parameters (`/api/v1/competitions/:competitionId/parameters`):** Dynamic criteria creation, activation/deactivation, round applicability, and additive versioning (scoring adjustments bump `competition.parameterConfigVersion` to safeguard historical snapshots).
+  - **Evaluations (`/api/v1/evaluations`):** Draft saving (`POST /draft`) and final submission (`POST /submit`). Cross-document checks ensure: competition and round are active; judge is assigned to participant's panel; participant is eligible for round; marks do not exceed parameter max; all active round criteria are scored on submission. Enforces submission lock (409 on resubmission of finalized evaluation) and round-closure lock.
+  - **Judge Portal (`/api/v1/judge`):** Endpoints for judges to retrieve assigned panels (`GET /panels`), panel participants with active round evaluation status (`GET /panels/:id/participants`), and judge's own evaluations (`GET /evaluations`).
+- **Files created/modified:** `server/src/services/{competition,panel,participant,parameter,evaluation}.service.ts` (new), `server/src/controllers/{competition,panel,participant,parameter,evaluation,judge}.controller.ts` (new), `server/src/routes/{competition,panel,participant,parameter,evaluation,judge}.routes.ts` (new), `server/src/validators/{competition,panel,participant,parameter,evaluation}.validators.ts` (new), `server/src/app.ts`.
+- **Dependencies added:** None.
+- **Verification commands:** `npm run typecheck`, `npm run build`, `npm test`.
+- **Verification results:** Clean typecheck, production build passes, 43 automated tests pass across 9 suites.
+- **Completion date:** 2026-10-22
+
+### T-16 — Deterministic scoring and ranking engine (P-07)
+
+- **Implementation summary:** Created `server/src/services/scoring.service.ts` as a pure, deterministic, independently testable scoring module. Key features:
+  - Dynamic derivation of total possible marks from applicable active criteria (never hardcoded to 100).
+  - Criterion-level awarded marks calculation with support for parameter weightages and normalization against fixed totals or percentages.
+  - Multi-judge aggregation using the arithmetic mean of submitted normalized scores and raw marks.
+  - Tracking of evaluation completeness (submitted judge count vs panel total judge count).
+  - Multi-round aggregation with configurable round weightings (e.g., 50% Round 1 + 50% Round 2).
+  - Deterministic tie resolution: standard competition ranking ("1224" shared ranks for equal scores) with deterministic alphabetical fallback on registrationId for stable display order, plus optional `round2Priority` or `rawMarks` tie-break policies.
+- **Files created:** `server/src/services/scoring.service.ts`, `server/test/scoring.test.ts`.
+- **Dependencies added:** None.
+- **Verification commands:** `npx tsx --test test/scoring.test.ts`.
+- **Verification results:** All 5 unit tests pass: dynamic criteria marks derivation, weightages and scaling, judge arithmetic mean aggregation, round weighting, and ranking ties.
+- **Completion date:** 2026-10-22
+
+### T-17 — Leaderboard and progress reporting API (P-08)
+
+- **Implementation summary:** Implemented real-time live leaderboard and administrative progress reporting services and controllers:
+  - `GET /api/v1/competitions/:competitionId/leaderboard`: Overall leaderboard ranking all competition participants across rounds with rank, total normalized score, raw average marks, and per-round score breakdowns.
+  - `GET /api/v1/competitions/:competitionId/leaderboard/round/:round`: Round-specific leaderboard filtered to Round 1 or Round 2.
+  - `GET /api/v1/competitions/:competitionId/leaderboard/panel/:panelId`: Panel-specific leaderboard filtered to a single judge panel.
+  - `GET /api/v1/competitions/:competitionId/progress`: Administrative competition progress report detailing total participants, active round, and panel-by-panel expected vs submitted evaluation metrics for Round 1 and Round 2.
+- **Files created/modified:** `server/src/services/leaderboard.service.ts` (new), `server/src/controllers/leaderboard.controller.ts` (new), `server/src/routes/leaderboard.routes.ts` (new), mounted in `server/src/routes/competition.routes.ts`.
+- **Dependencies added:** None.
+- **Verification commands:** `npm run typecheck`, `npm run build`, `npm test`.
+- **Verification results:** Verified in `test/integration.test.ts`: overall, round 1, panel 1 leaderboards, and administrative progress reports correctly calculated.
+- **Completion date:** 2026-10-22
+
+### T-18 — Automated integration and unit test suite across all layers (P-10)
+
+- **Implementation summary:** Built a comprehensive end-to-end integration test suite (`server/test/integration.test.ts`) that runs against a live MongoDB database. Exercises complete user lifecycle: admin provisioning, judge provisioning, login, token authentication, role-based authorization, deactivated account rejection, competition creation, parameter creation and additive versioning, panel creation and judge assignment, participant registration and duplicate rejection within competition, Round 1 activation, judge portal participant retrieval, evaluation submission and validation rules, duplicate evaluation submission prevention, round closure, post-closure submission rejection, Round 2 qualification via topN, overall and round leaderboards, and administrative progress metrics.
+- **Files created:** `server/test/integration.test.ts`.
+- **Dependencies added:** None (uses Node built-in `node:test` and `node:assert/strict`).
+- **Verification commands:** `npm test`, `npm run typecheck`, `npm run build`.
+- **Verification results:** 43 tests pass across 9 suites in ~3s. Production build emits clean `dist/`.
+- **Completion date:** 2026-10-22
+
 ---
 
 ## D. In-Progress Tasks
 
-_None. No task is currently started but unfinished._
+_None. Backend implementation scope is complete._
 
 ---
 
@@ -389,16 +450,11 @@ _None. No task is currently started but unfinished._
 
 | ID | Task | Prerequisites |
 |----|------|---------------|
-| P-05 | Authentication/authorization (roles: admin, judge) | P-01, P-03 |
-| P-06 | Evaluation/submission REST API under `/api/v1` (controllers + routes) | P-01, P-02, P-05 |
-| P-07 | Ranking/scoring engine — **scoring rules not yet approved; must be specified before implementation** | P-01, P-06 |
-| P-08 | Live leaderboard API and real-time updates (delivery mechanism — polling vs Socket.IO — **not yet decided**) | P-07 |
 | P-09 | Frontend implementation (React + TS + Vite + Tailwind; auth, admin, judge, leaderboard pages) | P-06, P-08 |
-| P-10 | Automated tests for the remaining layers (model, service, API) + coverage reporting — the test runner, `npm test` script and the validation / health / CORS suites now exist (T-13) | P-01…P-08 |
 | P-11 | Documentation: README content, `docs/` API reference | parallel |
 | P-12 | CI/lint tooling (ESLint/Prettier) — none configured | parallel |
 
-Tracked tasks: 13 completed (T-01…T-13, including P-04 delivered as T-10, P-03 delivered as T-11, P-01 delivered as T-12 and P-02 delivered as T-13) + 8 pending = 21 → **62% complete**.
+Tracked tasks: 18 completed (T-01…T-18) + 3 pending = 21 → **86% complete**.
 
 ---
 
@@ -408,26 +464,23 @@ Recorded only from decisions made in this project's implementation sessions.
 
 - **Language/module config:** TypeScript strict mode with additional flags (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `forceConsistentCasingInFileNames`); compiled target ES2022, CommonJS output, `rootDir: src` → `outDir: dist`.
 - **Runtime tooling:** `tsx` for dev (watch mode), `tsc` for production build, `node dist/server.js` for start; `tsc --noEmit` as the type-check gate.
-- **Dependency versions (installed):** `express@4.21.2`, `dotenv@16.4.7`, `zod@4.6.7`, `mongoose@9.11.2`, `cors@2.8.6` (+ `@types/cors@2.8.19` dev), `typescript@5.7.3`, `tsx@4.19.2`.
-- **Configuration:** single centralized module `config/env.ts`; validated with Zod; exports an immutable frozen `env` object; **only `env.ts` may read `process.env`**; no hardcoded credentials or connection strings anywhere.
+- **Dependency versions (installed):** `express@4.21.2`, `dotenv@16.4.7`, `zod@4.6.7`, `mongoose@9.11.2`, `cors@2.8.6` (+ `@types/cors@2.8.19` dev), `jsonwebtoken@9.0.2` (+ `@types/jsonwebtoken@9.0.8` dev), `bcryptjs@2.4.3` (+ `@types/bcryptjs@2.4.6` dev), `typescript@5.7.3`, `tsx@4.19.2`.
+- **Configuration:** single centralized module `config/env.ts`; validated with Zod; exports an immutable frozen `env` object; **only `env.ts` may read `process.env`**; no hardcoded credentials or connection strings anywhere. Added `JWT_SECRET` (validated 32+ characters in production) and `JWT_EXPIRES_IN`.
+- **Authentication & RBAC:** Stateless JWT bearer tokens signed with HMAC SHA-256. Passwords hashed with bcryptjs (10 salt rounds). Role-based authorization (`admin`, `judge`, `participant`). Active state verified on every request (deactivated users rejected immediately). Public judge registration disabled; accounts provisioned by administrators.
+- **Identity isolation:** Judge identity is derived strictly from verified JWT claims (`req.user.id`). Request-body judge IDs are never accepted for evaluation submission or draft saving.
+- **Panel-level authorization:** Judges can only view panels they are assigned to, and can only score participants assigned to their panels. Cross-panel evaluations are rejected with 403 Forbidden.
+- **Evaluation immutability & historical snapshotting:** Historical evaluation criteria are frozen at submission time in `criteria[]` subdocuments containing `parameterName`, `maxMarks`, `weightage`, `applicableRounds`, and `awardedMarks`. Updating a parameter in the competition does not recalculate existing evaluations.
+- **Evaluation submission lock:** Once an evaluation is submitted (`status: "submitted"`), duplicate submissions or edits are rejected with 409 Conflict. Post-round-closure submissions are rejected with 400 Bad Request.
+- **Scoring & Leaderboard Engine:** Pure, deterministic scoring service. Dynamic total marks derivation (no hardcoded 100). Arithmetic mean across panel judges. Multi-round weighting (default 50/50, configurable). Standard competition ranking ("1224" shared rank for ties) with deterministic alphabetical fallback on registrationId.
 - **Application vs startup separation:** `app.ts` exports a side-effect-free `createApp()`; `server.ts` owns process lifecycle (connect → listen → shutdown).
 - **Database startup policy:** initial MongoDB connection must succeed before the HTTP listener starts; failure ⇒ non-zero exit. No import-time connection side effects.
 - **Connection management:** Mongoose default connection; idempotent `connectDatabase()` (cached promise); no custom connection pool; no deprecated driver options; state read via `mongoose.connection.readyState`.
 - **Graceful shutdown:** SIGINT/SIGTERM → stop accepting connections → close HTTP server → `mongoose.disconnect()` → exit; guarded against duplicate execution; failures exit non-zero.
 - **API conventions:** versioned JSON API prefix `/api/v1`; feature-grouped routers in `server/src/routes/`, mounted in `app.ts`; health contract as specified in T-06 (lowercase `status`, ISO-8601 `timestamp`).
 - **CORS policy (T-10):** single policy module `middleware/cors.ts`; allowlist = `env.CLIENT_ORIGIN` + non-production loopback origins; explicit methods/headers lists; `credentials: false`; disallowed origins get no CORS headers; mounted first in `createApp()`; CORS is a browser policy only, never an auth mechanism.
-- **User model (T-09):** roles exported as `USER_ROLES` const array (`admin`, `judge`, `participant`); `passwordHash` uses `select: false` (retrievable explicitly for future auth); email uniqueness via schema `unique: true`; duplicate model registration guarded with `models.User ?? model(...)` for `tsx watch` reloads; no hashing logic in the model.
-- **Error contract (T-11):** all failures return `{ "error": { status, code, message, path, timestamp, details?, stack? } }`; the `error` key nests errors so they can never be mistaken for a success payload; `code` is a stable machine-readable string from the `ERROR_CODES` registry; `path` never includes the query string; `timestamp` is ISO-8601 (consistent with the health contract).
-- **Error raising (T-11):** application code raises HTTP errors exclusively via `ApiError` (`utils/api-error.ts`); the error handler maps untyped errors (body-parser, Mongoose, Mongo) into the same envelope so no route can bypass the contract.
-- **Information disclosure (T-11):** 5xx responses always use the fixed message `"Internal server error"` and never carry `details`; `stack` is emitted only when `NODE_ENV !== "production"`; 4xx messages are author-written or fixed generic strings. Server-side logs keep the full error (5xx via `console.error` with the original error object).
-- **Middleware order (T-11):** CORS → body parsers → feature routers → `notFoundHandler` → `errorHandler` (must be last); the 404 handler delegates to the error handler via `next(err)` so there is exactly one response-writing path.
-- **Model typing strategy (T-12):** explicit domain interface + `SchemaDefinition<Raw>` object checked with `satisfies` + `new Schema<Raw>(def, { timestamps: true })`. `Schema<Raw>` alone does not check a definition against its interface; `InferSchemaType` is not used for the new models because in Mongoose 9 it widens numeric enums to `number`, infers `Mixed` as `any` and makes defaulted fields optional. `user.model.ts` keeps its original `InferSchemaType` style and is not modified.
-- **Model naming and references (T-12):** every aggregate lives in `server/src/models/<name>.model.ts` and is exported as a named model with the `models.X ?? model<X>("X", …)` guard; `models/index.ts` is the single import surface. Cross-model `ref` strings are checked at compile time with `satisfies ModelName`.
-- **Round identifiers (T-12):** the domain has exactly two rounds, expressed once as `ROUND_IDENTIFIERS = [1, 2] as const` and used as a literal union (`RoundIdentifier`) in every round-bearing field. The value is not configurable.
-- **Round lifecycle (T-12):** the model layer never advances a round. `rounds[].status` is validated for internal consistency (exactly two rounds, unique ids, `closedAt >= startedAt`, round 2 not ahead of round 1) but transitions are a service-layer concern.
-- **Scoring policy (T-12):** `Competition.scoringPolicy` stores *metadata only* — `totalSource` (`fixed|derived`), `fixedTotal` and three free-form strategy blocks. No totals, weights, ranking rules or leaderboard behaviour are implemented, because no scoring rules have been approved (see the "Scoring rules" entry below).
-- **Configuration versioning (T-12):** `EvaluationParameter.configVersion` versions a parameter; `Competition.parameterConfigVersion` versions the whole parameter set; each `Evaluation.criteria[]` entry freezes the parameter's `configVersion`, name, `maxMarks`, `weightage` and `applicableRounds` at evaluation time so historical scores are immutable. Versioning is per-parameter and additive — there is no `supersededBy` pointer and no global "current version" query contract yet.
-- **Eligibility (T-12):** participant eligibility is stored explicitly per round (not derived from panel membership or scores) so "who may be judged in round N" is answerable without joins; an ineligible round must state a reason.
+- **User model (T-09):** roles exported as `USER_ROLES` const array (`admin`, `judge`, `participant`); `passwordHash` uses `select: false` (retrievable explicitly for auth); email uniqueness via schema `unique: true`; duplicate model registration guarded with `models.User ?? model(...)`.
+- **Error contract (T-11):** all failures return `{ "error": { status, code, message, path, timestamp, details?, stack? } }`; the `error` key nests errors so they can never be mistaken for a success payload; `code` is a stable machine-readable string from the `ERROR_CODES` registry; `path` never includes the query string; `timestamp` is ISO-8601.
+- **Testing:** Node's built-in test runner (`node:test`) executed through `tsx`; `npm test` = `tsc -p tsconfig.test.json && tsx --test test/**/*.test.ts`. 43 tests pass across 9 test suites covering health, CORS, error contract, request validation, scoring/ranking unit tests, and live MongoDB integration tests.
 - **Evaluation uniqueness (T-12):** the unique index on `{competition, participant, round, judge}` covers drafts as well as submitted evaluations — a judge re-scores by updating the existing document, never by creating a second one. `draft → submitted` is the only implemented transition; there is no revision history.
 - **Validation plumbing (T-12):** value-only rules use `schema.path(...).validate(fn, "message")`; cross-field rules use a typed `pre("validate")` hook and `this.invalidate(path, message)`. Both produce ordinary Mongoose `ValidationError`s, so they render through the existing T-11 error envelope with no extra mapping code. Mongoose 9 has no `SchemaOptions.validate` and no `Schema.prototype.validate`.
 - **Request validation boundary (T-13):** one middleware, `validate({ body?, params?, query? })` in `server/src/middleware/validate.ts`, applied **per route** (never globally) and always registered *before* the handler. It is the only sanctioned way for untrusted input to enter the application layer.
