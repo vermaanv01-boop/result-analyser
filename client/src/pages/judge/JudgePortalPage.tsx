@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { api } from "../../services/api";
 import type {
   Evaluation,
@@ -276,13 +277,16 @@ export const JudgePortalPage: React.FC = () => {
           gap: "16px",
         }}
       >
-        <div>
-          <h1 style={{ fontSize: "28px", color: "var(--color-navy)", marginBottom: "4px" }}>
-            Judge Evaluation Portal
-          </h1>
-          <p style={{ color: "var(--color-slate)", fontSize: "14px" }}>
-            Select assigned panel and score participant criteria in real-time.
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <KARVAANLogo size="md" variant="dark" showText={false} />
+          <div>
+            <h1 style={{ fontSize: "28px", color: "var(--color-navy)", marginBottom: "4px" }}>
+              Judge Evaluation Portal
+            </h1>
+            <p style={{ color: "var(--color-slate)", fontSize: "14px" }}>
+              Select assigned panel and score participant criteria in real-time.
+            </p>
+          </div>
         </div>
 
         {/* Panel Switcher */}
