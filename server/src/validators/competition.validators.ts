@@ -43,7 +43,7 @@ export const competitionIdParamsSchema = z.object({
 
 export const roundParamsSchema = z.object({
   competitionId: objectIdSchema,
-  round: z.coerce.number().pipe(roundIdentifierSchema),
+  round: z.enum(["1", "2"]),
 });
 
 export const updateRoundStatusSchema = z.object({
