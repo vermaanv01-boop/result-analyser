@@ -10,6 +10,10 @@ export function isNonNegativeNumber(value: number): boolean {
   return Number.isFinite(value) && value >= 0;
 }
 
+export function isPositiveNumberOrNull(value: number | null): boolean {
+  return value === null || value === undefined || isPositiveNumber(value);
+}
+
 export function isPositiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
 }
@@ -22,6 +26,11 @@ export const finiteNumberValidator = {
 export const positiveNumberValidator = {
   validator: isPositiveNumber,
   message: "must be a finite positive number",
+};
+
+export const positiveNumberOrNullValidator = {
+  validator: isPositiveNumberOrNull,
+  message: "must be a finite positive number when provided",
 };
 
 export const nonNegativeNumberValidator = {
