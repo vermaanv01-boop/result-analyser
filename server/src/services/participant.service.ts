@@ -19,8 +19,8 @@ export async function createParticipant(
   data: {
     name: string;
     registrationId: string;
-    email?: string | null;
-    panel?: string | null;
+    email?: string | null | undefined;
+    panel?: string | null | undefined;
   },
 ): Promise<ParticipantDocument> {
   const competition = await Competition.findById(competitionId);
@@ -68,9 +68,9 @@ export async function createParticipant(
 export async function getParticipants(
   competitionId: string,
   filters: {
-    panel?: string;
-    isActive?: boolean;
-    round?: RoundIdentifier;
+    panel?: string | undefined;
+    isActive?: boolean | undefined;
+    round?: RoundIdentifier | undefined;
   },
 ): Promise<ParticipantDocument[]> {
   const query: Record<string, unknown> = { competition: competitionId };
@@ -114,11 +114,11 @@ export async function updateParticipant(
   competitionId: string,
   participantId: string,
   data: {
-    name?: string;
-    registrationId?: string;
-    email?: string | null;
-    panel?: string | null;
-    isActive?: boolean;
+    name?: string | undefined;
+    registrationId?: string | undefined;
+    email?: string | null | undefined;
+    panel?: string | null | undefined;
+    isActive?: boolean | undefined;
   },
 ): Promise<ParticipantDocument> {
   const participant = await Participant.findOne({
@@ -210,9 +210,9 @@ export async function updateEligibility(
 
 export interface QualifyRound2Options {
   method: "explicit" | "topN" | "cutoffScore";
-  participantIds?: string[];
-  topN?: number;
-  cutoffScore?: number;
+  participantIds?: string[] | undefined;
+  topN?: number | undefined;
+  cutoffScore?: number | undefined;
 }
 
 export async function qualifyParticipantsForRound2(

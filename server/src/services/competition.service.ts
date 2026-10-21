@@ -14,8 +14,8 @@ export async function createCompetition(
   creator: AuthenticatedUser,
   data: {
     name: string;
-    description?: string | null;
-    scoringPolicy?: CompetitionScoringPolicy;
+    description?: string | null | undefined;
+    scoringPolicy?: CompetitionScoringPolicy | undefined;
   },
 ): Promise<CompetitionDocument> {
   const competition = new Competition({
@@ -46,10 +46,10 @@ export async function listCompetitions(): Promise<CompetitionDocument[]> {
 export async function updateCompetition(
   id: string,
   data: {
-    name?: string;
-    description?: string | null;
-    status?: CompetitionStatus;
-    scoringPolicy?: CompetitionScoringPolicy;
+    name?: string | undefined;
+    description?: string | null | undefined;
+    status?: CompetitionStatus | undefined;
+    scoringPolicy?: CompetitionScoringPolicy | undefined;
   },
 ): Promise<CompetitionDocument> {
   const competition = await Competition.findById(id);

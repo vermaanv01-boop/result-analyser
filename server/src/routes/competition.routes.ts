@@ -16,10 +16,19 @@ import {
   updateCompetitionSchema,
   updateRoundStatusSchema,
 } from "../validators/competition.validators";
+import leaderboardRoutes from "./leaderboard.routes";
+import panelRoutes from "./panel.routes";
+import parameterRoutes from "./parameter.routes";
+import participantRoutes from "./participant.routes";
 
 const router = Router();
 
 router.use(authenticate);
+
+router.use("/:competitionId/panels", panelRoutes);
+router.use("/:competitionId/participants", participantRoutes);
+router.use("/:competitionId/parameters", parameterRoutes);
+router.use("/:competitionId/leaderboard", leaderboardRoutes);
 
 router.post(
   "/",

@@ -8,9 +8,9 @@ export async function createPanel(
   competitionId: string,
   data: {
     name: string;
-    description?: string | null;
+    description?: string | null | undefined;
     judges: string[];
-    isActive?: boolean;
+    isActive?: boolean | undefined;
   },
 ): Promise<PanelDocument> {
   const competition = await Competition.findById(competitionId);
@@ -76,10 +76,10 @@ export async function updatePanel(
   competitionId: string,
   panelId: string,
   data: {
-    name?: string;
-    description?: string | null;
-    judges?: string[];
-    isActive?: boolean;
+    name?: string | undefined;
+    description?: string | null | undefined;
+    judges?: string[] | undefined;
+    isActive?: boolean | undefined;
   },
 ): Promise<PanelDocument> {
   const panel = await Panel.findOne({
