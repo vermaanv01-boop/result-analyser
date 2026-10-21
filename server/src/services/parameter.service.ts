@@ -10,12 +10,12 @@ export async function createParameter(
   competitionId: string,
   data: {
     name: string;
-    description?: string | null;
-    guidelines?: string | null;
+    description?: string | null | undefined;
+    guidelines?: string | null | undefined;
     maxMarks: number;
     weightage: number;
     applicableRounds: RoundIdentifier[];
-    isActive?: boolean;
+    isActive?: boolean | undefined;
   },
 ): Promise<EvaluationParameterDocument> {
   const competition = await Competition.findById(competitionId);
@@ -42,8 +42,8 @@ export async function createParameter(
 export async function getParameters(
   competitionId: string,
   filters: {
-    round?: RoundIdentifier;
-    isActive?: boolean;
+    round?: RoundIdentifier | undefined;
+    isActive?: boolean | undefined;
   },
 ): Promise<EvaluationParameterDocument[]> {
   const query: Record<string, unknown> = { competition: competitionId };
@@ -79,13 +79,13 @@ export async function updateParameter(
   competitionId: string,
   parameterId: string,
   data: {
-    name?: string;
-    description?: string | null;
-    guidelines?: string | null;
-    maxMarks?: number;
-    weightage?: number;
-    applicableRounds?: RoundIdentifier[];
-    isActive?: boolean;
+    name?: string | undefined;
+    description?: string | null | undefined;
+    guidelines?: string | null | undefined;
+    maxMarks?: number | undefined;
+    weightage?: number | undefined;
+    applicableRounds?: RoundIdentifier[] | undefined;
+    isActive?: boolean | undefined;
   },
 ): Promise<EvaluationParameterDocument> {
   const competition = await Competition.findById(competitionId);

@@ -210,12 +210,12 @@ export async function saveEvaluation(
 }
 
 export async function getEvaluations(filters: {
-  competition?: string;
-  panel?: string;
-  participant?: string;
-  judge?: string;
-  round?: RoundIdentifier;
-  status?: "draft" | "submitted";
+  competition?: string | undefined;
+  panel?: string | undefined;
+  participant?: string | undefined;
+  judge?: string | undefined;
+  round?: RoundIdentifier | undefined;
+  status?: "draft" | "submitted" | undefined;
 }): Promise<EvaluationDocument[]> {
   const query: Record<string, unknown> = {};
 
