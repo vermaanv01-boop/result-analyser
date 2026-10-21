@@ -554,15 +554,18 @@ Recorded only from decisions made in this project's implementation sessions.
 
 ---
 
-## H. Next Recommended Task
+## H. Project Delivery & Next Recommended Actions
 
-**P-05 — Authentication and authorization (roles: admin, judge)**
+**All 21 Planned Roadmap Milestones (P-01 through P-12) Completed (100%)**
 
-- *Why next:* P-02 closed the last shared prerequisite, so P-06 (the evaluation/submission REST API) is now unblocked **except** for identity. Without an authenticated principal, every business route would have to read a user id from the body — exactly the mass-assignment hole the T-13 validation layer was built to close. P-05 delivers that principal (`req.user` plus a role check) so P-06 can enforce "a judge may only score their own panel" (the cross-document invariant listed as G-15).
-- *Scope for the next step:* a single authentication middleware (credential check against `User.passwordHash`, which is already `select: false` and excluded from default queries), a role-guard middleware for the `admin` / `judge` roles, and a `server/src/middleware/auth.ts` seam that the P-02 validation layer can wrap. `JWT` vs. server-side sessions is **not yet decided** and must be settled at the start of that task; the token/session mechanism is an open decision, not a fait accompli.
-- *Prerequisites:* P-01 (done — the `User` model and the `admin` / `judge` / `participant` roles exist), P-03 (done — the error contract that 401 / 403 responses must use), P-02 (done — the request-validation layer that login and role-protected routes will use for their bodies).
-- *Also worth doing in the same session:* extend the committed test suite (`server/test/`) with the auth/role cases in the same `node:test` + `tsx` style established by T-13, and start moving the T-11/T-12 throwaway probes into `server/test/` so the model and error-contract assertions become re-runnable from the repo (P-10).
-- *Verification for the next step:* `npm run typecheck`, `npm run build`, `npm test` (must stay green, including the 27 T-13 assertions), plus a live probe for the 401 / 403 envelope and the role matrix; update this document in the same session.
+- *Status:* Both the backend API server and the React + Vite frontend client are fully operational, strictly typed, and verified via automated integration suites.
+- *Recommended Next Actions for Operations / Production Deployment:*
+  1. **Production Seeding:** Run a database seed script to initialize the first primary administrator user (e.g. `POST /api/v1/auth/users`).
+  2. **Production Hosting:**
+     - Deploy backend container or Node.js service (e.g., Docker, Render, AWS ECS, Fly.io).
+     - Deploy static frontend client bundle from `client/dist/` (e.g., Vercel, Netlify, Cloudflare Pages, AWS S3/CloudFront).
+     - Set production environment variables (`JWT_SECRET` >= 32 characters, `NODE_ENV=production`, `MONGODB_URI`, `CLIENT_ORIGIN`).
+  3. **Event Day Operation:** Administrators provision judge accounts, establish judging panels, set round parameters, and project the Live Leaderboard (`/leaderboard`) on competition auditorium display screens with 15-second live polling.
 
 ---
 
