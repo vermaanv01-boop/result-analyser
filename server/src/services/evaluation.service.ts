@@ -269,7 +269,9 @@ export async function getProgressReport(
     throw ApiError.notFound("Competition not found");
   }
 
-  const panels = await Panel.find({ competition: competition._id });
+  const panels = await Panel.find({ competition: competition._id }).sort({
+    createdAt: 1,
+  });
   const participants = await Participant.find({
     competition: competition._id,
     isActive: true,

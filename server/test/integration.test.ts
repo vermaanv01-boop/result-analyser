@@ -688,7 +688,11 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     const progData = (await progressRes.json()) as any;
     assert.equal(progData.progress.totalParticipants, 2);
     assert.equal(progData.progress.totalPanels, 2);
-    assert.equal(progData.progress.panelProgress[0].round1.submitted, 2);
-    assert.equal(progData.progress.panelProgress[0].round1.isComplete, true);
+    const p1Progress = progData.progress.panelProgress.find(
+      (p: any) => p.panelId === panel1Id,
+    );
+    assert.ok(p1Progress);
+    assert.equal(p1Progress.round1.submitted, 2);
+    assert.equal(p1Progress.round1.isComplete, true);
   });
 });
