@@ -16,10 +16,9 @@ export async function comparePassword(plaintext: string, hash: string): Promise<
 }
 
 export function signToken(payload: AuthTokenPayload): string {
-  const options: SignOptions = {
-    expiresIn: env.JWT_EXPIRES_IN as unknown as SignOptions["expiresIn"],
-  };
-  return jwt.sign(payload, env.JWT_SECRET, options);
+  return jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN,
+  } as unknown as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): AuthTokenPayload {
