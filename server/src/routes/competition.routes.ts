@@ -6,6 +6,7 @@ import {
   updateCompetitionHandler,
   updateRoundStatusHandler,
 } from "../controllers/competition.controller";
+import { getProgressReportHandler } from "../controllers/evaluation.controller";
 import { authenticate, requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import {
@@ -53,6 +54,13 @@ router.post(
     body: updateRoundStatusSchema,
   }),
   updateRoundStatusHandler,
+);
+
+router.get(
+  "/:competitionId/progress",
+  requireRole("admin"),
+  validate({ params: competitionIdParamsSchema }),
+  getProgressReportHandler,
 );
 
 export default router;
