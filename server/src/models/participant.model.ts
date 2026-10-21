@@ -41,10 +41,7 @@ function createDefaultEligibility(): ParticipantEligibility[] {
   }));
 }
 
-function validateEligibility(
-  this: Participant,
-  value: ParticipantEligibility[],
-): boolean {
+function validateEligibility(value: ParticipantEligibility[]): boolean {
   if (!Array.isArray(value) || value.length !== ROUND_IDENTIFIERS.length) {
     return false;
   }
@@ -143,13 +140,19 @@ const participantDefinition = {
     type: [eligibilitySchema],
     required: [true, "eligibility is required"],
     default: () => createDefaultEligibility(),
-    validate: validateEligibility,
   },
 } satisfies SchemaDefinition<Participant>;
 
 const participantSchema = new Schema<Participant>(participantDefinition, {
   timestamps: true,
 });
+
+participantSchema
+  .path("eligibility")
+  .validate(
+    validateEligibility,
+    "eligibility must cover rounds 1 and 2 exactly once and must state a reason for every ineligible round",
+  );
 
 participantSchema.index(
   { competition: 1, registrationId: 1 },

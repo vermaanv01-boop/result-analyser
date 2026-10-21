@@ -19,7 +19,7 @@ export interface Panel {
   updatedAt: Date;
 }
 
-function validateJudges(this: Panel, value: Types.ObjectId[]): boolean {
+function validateJudges(value: Types.ObjectId[]): boolean {
   if (!Array.isArray(value) || value.length === 0) {
     return false;
   }
@@ -51,7 +51,6 @@ const panelDefinition = {
   judges: {
     type: [{ type: Schema.Types.ObjectId, ref: "User" satisfies ModelName }],
     required: [true, "judges is required"],
-    validate: validateJudges,
   },
   isActive: {
     type: Boolean,
@@ -63,6 +62,13 @@ const panelDefinition = {
 const panelSchema = new Schema<Panel>(panelDefinition, {
   timestamps: true,
 });
+
+panelSchema
+  .path("judges")
+  .validate(
+    validateJudges,
+    "judges must contain at least one judge and no duplicate judges",
+  );
 
 panelSchema.index(
   { competition: 1, name: 1 },

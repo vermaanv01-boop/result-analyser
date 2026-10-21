@@ -32,10 +32,7 @@ export interface EvaluationParameter {
   updatedAt: Date;
 }
 
-function validateApplicableRounds(
-  this: EvaluationParameter,
-  value: RoundIdentifier[],
-): boolean {
+function validateApplicableRounds(value: RoundIdentifier[]): boolean {
   if (!Array.isArray(value) || value.length === 0) {
     return false;
   }
@@ -95,7 +92,6 @@ const evaluationParameterDefinition = {
   applicableRounds: {
     type: [{ type: Number, enum: { values: ROUND_IDENTIFIERS } }],
     required: [true, "applicableRounds is required"],
-    validate: validateApplicableRounds,
   },
   isActive: {
     type: Boolean,
@@ -114,6 +110,13 @@ const evaluationParameterSchema = new Schema<EvaluationParameter>(
   evaluationParameterDefinition,
   { timestamps: true },
 );
+
+evaluationParameterSchema
+  .path("applicableRounds")
+  .validate(
+    validateApplicableRounds,
+    "applicableRounds must contain at least one round and no duplicate rounds",
+  );
 
 evaluationParameterSchema.index(
   { competition: 1, isActive: 1 },

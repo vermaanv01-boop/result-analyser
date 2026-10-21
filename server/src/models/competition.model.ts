@@ -87,10 +87,7 @@ function createDefaultScoringPolicy(): CompetitionScoringPolicy {
   };
 }
 
-function validateRoundsConfiguration(
-  this: Competition,
-  value: CompetitionRound[],
-): boolean {
+function validateRoundsConfiguration(value: CompetitionRound[]): boolean {
   if (!Array.isArray(value) || value.length !== ROUND_IDENTIFIERS.length) {
     return false;
   }
@@ -120,10 +117,7 @@ function validateRoundsConfiguration(
   return ROUND_IDENTIFIERS.every((round) => configured.has(round));
 }
 
-function validateRoundProgression(
-  this: Competition,
-  value: CompetitionRound[],
-): boolean {
+function validateRoundProgression(value: CompetitionRound[]): boolean {
   if (!Array.isArray(value)) {
     return false;
   }
@@ -145,10 +139,7 @@ function validateRoundProgression(
   return true;
 }
 
-function validateScoringPolicy(
-  this: Competition,
-  value: CompetitionScoringPolicy,
-): boolean {
+function validateScoringPolicy(value: CompetitionScoringPolicy): boolean {
   if (!value) {
     return false;
   }
@@ -278,13 +269,11 @@ const competitionDefinition = {
     type: [roundSchema],
     required: [true, "rounds is required"],
     default: () => createDefaultRounds(),
-    validate: [validateRoundsConfiguration, validateRoundProgression],
   },
   scoringPolicy: {
     type: scoringPolicySchema,
     required: [true, "scoringPolicy is required"],
     default: () => createDefaultScoringPolicy(),
-    validate: validateScoringPolicy,
   },
   parameterConfigVersion: {
     type: Number,
@@ -301,6 +290,24 @@ const competitionDefinition = {
 const competitionSchema = new Schema<Competition>(competitionDefinition, {
   timestamps: true,
 });
+
+competitionSchema
+  .path("rounds")
+  .validate(
+    validateRoundsConfiguration,
+    "rounds must configure exactly rounds 1 and 2 with unique identifiers",
+  )
+  .validate(
+    validateRoundProgression,
+    "rounds must not activate or close round 2 while round 1 is still pending",
+  );
+
+competitionSchema
+  .path("scoringPolicy")
+  .validate(
+    validateScoringPolicy,
+    "a fixed scoring total requires a positive fixedTotal and a derived scoring total must not define a fixedTotal",
+  );
 
 competitionSchema.index(
   { status: 1, createdAt: -1 },

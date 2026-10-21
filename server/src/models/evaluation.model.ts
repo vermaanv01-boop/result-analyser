@@ -46,71 +46,6 @@ export interface Evaluation {
   updatedAt: Date;
 }
 
-function validateAwardedMarks(
-  this: EvaluationCriterion,
-  value: number,
-): boolean {
-  if (!Number.isFinite(value) || value < 0) {
-    return false;
-  }
-
-  const maxMarks = this.maxMarks;
-
-  if (typeof maxMarks !== "number" || !Number.isFinite(maxMarks)) {
-    return true;
-  }
-
-  return value <= maxMarks;
-}
-
-function validateCriteria(this: Evaluation, value: EvaluationCriterion[]): boolean {
-  if (!Array.isArray(value) || value.length === 0) {
-    return false;
-  }
-
-  const parameters = new Set<string>();
-
-  for (const criterion of value) {
-    const key = criterion.parameter.toString();
-
-    if (parameters.has(key)) {
-      return false;
-    }
-
-    parameters.add(key);
-
-    if (!Array.isArray(criterion.applicableRounds)) {
-      return false;
-    }
-
-    if (!criterion.applicableRounds.includes(this.round)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function validateStatus(this: Evaluation, value: EvaluationStatus): boolean {
-  if (value !== "submitted") {
-    return true;
-  }
-
-  if (this.submittedAt === null || this.submittedAt === undefined) {
-    return false;
-  }
-
-  return Array.isArray(this.criteria) && this.criteria.length > 0;
-}
-
-function validateSubmittedAt(this: Evaluation, value: Date | null): boolean {
-  if (this.status !== "submitted") {
-    return true;
-  }
-
-  return value !== null && value !== undefined;
-}
-
 const criterionDefinition = {
   parameter: {
     type: Schema.Types.ObjectId,
@@ -146,7 +81,7 @@ const criterionDefinition = {
   awardedMarks: {
     type: Number,
     required: [true, "awardedMarks is required"],
-    validate: validateAwardedMarks,
+    validate: nonNegativeNumberValidator,
   },
 } satisfies SchemaDefinition<EvaluationCriterion>;
 
@@ -192,12 +127,10 @@ const evaluationDefinition = {
     },
     required: [true, "status is required"],
     default: "draft",
-    validate: validateStatus,
   },
   criteria: {
     type: [criterionSchema],
     required: [true, "criteria is required"],
-    validate: validateCriteria,
   },
   parameterConfigVersion: {
     type: Number,
@@ -207,12 +140,56 @@ const evaluationDefinition = {
   submittedAt: {
     type: Date,
     default: null,
-    validate: validateSubmittedAt,
   },
 } satisfies SchemaDefinition<Evaluation>;
 
 const evaluationSchema = new Schema<Evaluation>(evaluationDefinition, {
   timestamps: true,
+});
+
+evaluationSchema.pre("validate", function () {
+  const criteria = this.criteria;
+  const seenParameters = new Set<string>();
+
+  criteria.forEach((criterion, index) => {
+    const key = criterion.parameter.toString();
+
+    if (seenParameters.has(key)) {
+      this.invalidate(
+        `criteria.${index}.parameter`,
+        "criteria must not contain more than one entry per parameter",
+      );
+    }
+
+    seenParameters.add(key);
+
+    if (!criterion.applicableRounds.includes(this.round)) {
+      this.invalidate(
+        `criteria.${index}.applicableRounds`,
+        "the evaluated parameter must apply to the evaluated round",
+      );
+    }
+
+    if (criterion.awardedMarks > criterion.maxMarks) {
+      this.invalidate(
+        `criteria.${index}.awardedMarks`,
+        "awardedMarks must not exceed the maximum marks of the evaluated parameter",
+      );
+    }
+  });
+
+  if (criteria.length === 0) {
+    this.invalidate("criteria", "criteria must contain at least one criterion");
+  }
+
+  if (this.status === "submitted") {
+    if (this.submittedAt == null) {
+      this.invalidate(
+        "submittedAt",
+        "submittedAt is required when the evaluation is submitted",
+      );
+    }
+  }
 });
 
 evaluationSchema.index(
