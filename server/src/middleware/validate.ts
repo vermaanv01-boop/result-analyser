@@ -14,18 +14,52 @@ export interface ValidationSchemas {
 type DefaultParams = Request["params"];
 type DefaultQuery = Request["query"];
 
+export type ValidatedParams<S extends ValidationSchemas> = S extends {
+  params: infer P extends ZodType;
+}
+  ? z.output<P>
+  : DefaultParams;
+
+export type ValidatedBody<S extends ValidationSchemas> = S extends {
+  body: infer B extends ZodType;
+}
+  ? z.output<B>
+  : unknown;
+
+export type ValidatedQuery<S extends ValidationSchemas> = S extends {
+  query: infer Q extends ZodType;
+}
+  ? z.output<Q>
+  : DefaultQuery;
+
 export type ValidatedRequest<S extends ValidationSchemas> = Request<
-  S extends { params: infer P extends ZodType } ? z.output<P> : DefaultParams,
+  ValidatedParams<S>,
   unknown,
-  S extends { body: infer B extends ZodType } ? z.output<B> : unknown,
-  S extends { query: infer Q extends ZodType } ? z.output<Q> : DefaultQuery
+  ValidatedBody<S>,
+  ValidatedQuery<S>
 >;
+
+export type ValidationMiddleware<S extends ValidationSchemas> = RequestHandler<
+  ValidatedParams<S>,
+  unknown,
+  ValidatedBody<S>,
+  ValidatedQuery<S>
+>;
+
+interface ComponentCarrier {
+  body: unknown;
+  params: unknown;
+  query: unknown;
+}
 
 const REQUEST_COMPONENTS: readonly RequestComponent[] = ["body", "params", "query"];
 
 const VALIDATION_MESSAGE = "Request validation failed";
 
-function readComponent(req: Request, component: RequestComponent): unknown {
+function readComponent(
+  req: ComponentCarrier,
+  component: RequestComponent,
+): unknown {
   switch (component) {
     case "body":
       return req.body;
@@ -37,7 +71,7 @@ function readComponent(req: Request, component: RequestComponent): unknown {
 }
 
 function writeComponent(
-  req: Request,
+  req: ComponentCarrier,
   component: RequestComponent,
   value: unknown,
 ): void {
@@ -74,7 +108,9 @@ export function createValidationError(issues: ValidationIssue[]): ApiError {
   });
 }
 
-export function validate(schemas: ValidationSchemas): RequestHandler {
+export function validate<S extends ValidationSchemas>(
+  schemas: S,
+): ValidationMiddleware<S> {
   return (req, _res, next): void => {
     const issues: ValidationIssue[] = [];
     const parsed: Array<{ component: RequestComponent; value: unknown }> = [];

@@ -14,8 +14,8 @@ Last updated: 2026-10-21
   - Frontend: React + TypeScript + Vite + Tailwind CSS (scaffold placeholders only; not started)
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
-- **Current development phase:** Backend domain layer (domain modeling and persistence — models complete, request/response layer next)
-- **Overall completion status:** 12 of 21 tracked tasks completed = **57%** (calculated from explicitly tracked tasks in sections C and E; does not include untracked polish work)
+- **Current development phase:** Backend request/response layer (domain models complete, centralized request validation complete; authentication and business endpoints next)
+- **Overall completion status:** 13 of 21 tracked tasks completed = **62%** (calculated from explicitly tracked tasks in sections C and E; does not include untracked polish work)
 
 ---
 
@@ -45,7 +45,8 @@ student-ranking-system/
 │   │   ├── middleware/
 │   │   │   ├── cors.ts          # Centralized env-driven CORS policy
 │   │   │   ├── error-handler.ts # Global error handler (last middleware) + error normalization
-│   │   │   └── not-found.ts     # Unmatched-route handler (delegates to the error handler)
+│   │   │   ├── not-found.ts     # Unmatched-route handler (delegates to the error handler)
+│   │   │   └── validate.ts      # Centralized request validation (body / params / query, Zod)
 │   │   ├── models/
 │   │   │   ├── index.ts                # Barrel: re-exports every model + its public types
 │   │   │   ├── user.model.ts           # User schema/model (roles: admin, judge, participant)
@@ -60,13 +61,20 @@ student-ranking-system/
 │   │   ├── types/
 │   │   │   ├── api.types.ts           # Error response contract types
 │   │   │   └── domain.types.ts        # MODEL_NAMES / ROUND_IDENTIFIERS shared vocabulary
-│   │   ├── controllers/  services/  validators/   # empty placeholders
+│   │   ├── validators/
+│   │   │   ├── common.ts         # Reusable Zod primitives (ObjectId, strings, numbers, rounds)
+│   │   │   └── index.ts          # Barrel: re-exports the shared Zod primitives
+│   │   ├── controllers/  services/   # empty placeholders
 │   │   ├── app.ts           # createApp(): Express composition, no side effects
 │   │   └── server.ts        # entry point: DB connect → listen → graceful shutdown
+│   ├── test/                 # Automated tests (node:test runner via tsx)
+│   │   ├── app.test.ts       # Health + CORS + 404 regression tests
+│   │   └── validate.test.ts  # Request validation contract tests
 │   ├── .env.example         # placeholder env values
-│   ├── package.json         # scripts: dev / build / start / typecheck
+│   ├── package.json         # scripts: dev / build / start / typecheck / test
 │   ├── package-lock.json
-│   └── tsconfig.json        # strict TypeScript config
+│   ├── tsconfig.json        # strict TypeScript config
+│   └── tsconfig.test.json   # typecheck config covering src + test
 ├── docs/                    # empty placeholder
 ├── .env.example             # root placeholder (empty)
 ├── .gitignore               # ignores node_modules/, dist/, .env
@@ -87,9 +95,12 @@ student-ranking-system/
 - `server/src/models/` — Mongoose schemas/models; one file per aggregate, re-exporting typed documents and the named model. Every model declares its own indexes, is registered through the `models.X ?? model<X>("X", …)` guard, and is re-exported from `models/index.ts`.
 - `server/src/types/domain.types.ts` — shared domain vocabulary: the `MODEL_NAMES` const union (used with `satisfies ModelName` so every `ref` is checked at compile time) and the `ROUND_IDENTIFIERS` const tuple (`[1, 2]`) with the derived `RoundIdentifier` literal union.
 - `server/src/utils/validation.ts` — reusable Mongoose validator helpers (finite / positive / non-negative / positive-integer predicates and their `{ validator, message }` option objects) so numeric rules are declared once.
+- `server/src/middleware/validate.ts` — the single HTTP request-validation boundary: `validate({ body?, params?, query? })` returns a typed middleware; `ValidatedRequest<S>` / `ValidatedParams<S>` / `ValidatedBody<S>` / `ValidatedQuery<S>` carry the schema-derived request shape into route handlers.
+- `server/src/validators/common.ts` — reusable **Zod** primitives for the HTTP layer (`objectIdSchema`, `idParamsSchema`, `nonEmptyString`, `emailSchema`, `positiveNumberSchema`, `nonNegativeNumberSchema`, `roundIdentifierSchema`), sourced from the existing domain vocabulary and shared numeric predicates; `validators/index.ts` is the barrel.
+- `server/test/` — automated tests executed with Node's built-in test runner through `tsx`; `npm test` type-checks `src` + `test` first, then runs the suite.
 - `client/` — not yet implemented (placeholder files only).
 
-Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `server/src/middleware/not-found.ts`, `server/src/utils/api-error.ts`, `server/src/types/api.types.ts`; extended again the same day with `server/src/models/{index,competition,panel,participant,evaluation-parameter,evaluation}.model.ts`, `server/src/types/domain.types.ts`, `server/src/utils/validation.ts`).
+Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `server/src/middleware/not-found.ts`, `server/src/utils/api-error.ts`, `server/src/types/api.types.ts`; extended again the same day with `server/src/models/{index,competition,panel,participant,evaluation-parameter,evaluation}.model.ts`, `server/src/types/domain.types.ts`, `server/src/utils/validation.ts`; extended once more the same day with `server/src/middleware/validate.ts`, `server/src/validators/{common,index}.ts`, `server/test/{app,validate}.test.ts`, `server/tsconfig.test.json`).
 
 ---
 
@@ -278,6 +289,94 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Completion date:** 2026-10-21
 - **Known limitations:** no automated test suite for the model layer (P-10); the probe was a throwaway script run from the OS temp directory and is not committed; cross-document invariants (panel/participant competition scoping, judge authorization, round lifecycle transitions, closed-round rejection, participant panel transfer, configuration-version selection, transactional multi-document operations) are deliberately **not** enforced here and belong to the service layer; `weightage` has no upper bound and no normalization rule because the scoring policy is still unapproved; no revision/version history for evaluation documents (the same judge re-scores by updating the existing evaluation).
 
+### T-13 — Centralized HTTP request validation infrastructure (P-02)
+
+- **Implementation summary:** a single, explicit validation boundary between untrusted HTTP input and application code, built on the already-installed Zod 4.6.7 and integrated with the existing T-11 error pipeline. No new error abstraction, no new dependency, no change to the domain models, no change to `app.ts` composition.
+
+  **Middleware contract — `server/src/middleware/validate.ts`**
+  - `validate(schemas: ValidationSchemas): ValidationMiddleware<S>` is the only entry point. `ValidationSchemas` is `{ body?: ZodType; params?: ZodType; query?: ZodType }` — each request component is configured independently, and a route may validate one, two, or all three.
+  - Each configured component is read from the request (`req.body`, `req.params`, `req.query`) and parsed with `schema.safeParse()`. Parsing never throws: a failure is converted into a list of issues, and the middleware then delegates to the error pipeline with `next(error)`. The downstream handler is **not** invoked.
+  - On success, the **parsed output** (not the raw input) is written back onto the request via `Object.defineProperty`, so transforms and coercions performed by the schema (trim, lower-case, `z.coerce.number()`) are what the handler sees. `Object.defineProperty` is used instead of plain assignment because it works whether the property is an own property (Express 4.22's `req.query`) or an inherited accessor, and it never leaves a read-only property behind.
+  - Validation order is fixed (`body` → `params` → `query`) and **all** configured components are evaluated, so a request with several problems reports all of them in one response instead of one problem per round trip. Nothing is written back when any component fails, so a rejected request never leaves partially-mutated state.
+  - Schemas are plain Zod objects, so the default Zod 4 behaviour applies: unknown keys are **stripped** rather than rejected (a cheap mass-assignment guard — a request cannot smuggle `role: "admin"` into a body), and `z.strictObject` remains available per route when unknown keys must be rejected.
+
+  **Type safety — `ValidatedRequest<S>`**
+  - `validate()` is generic over the schema map, and its return type is `RequestHandler<ValidatedParams<S>, unknown, ValidatedBody<S>, ValidatedQuery<S>>`. The validated request shape therefore propagates through Express's own route generics: the handler registered after the middleware is type-checked against exactly the shape the schemas produce, with **no type assertions and no `any`**.
+  - `ValidatedRequest<S>` is the matching handler-side type (`Request<ValidatedParams<S>, unknown, ValidatedBody<S>, ValidatedQuery<S>>`). Components without a schema keep Express's own defaults (`ParamsDictionary` for params, `ParsedQs` for query) and `unknown` for the body, so an unvalidated body cannot be read as if it were trusted.
+  - A compile-time regression test (`@ts-expect-error` on `req.body.unknownField`) proves the narrowing is real and is checked by `tsc` on every `npm test` run.
+
+  **Error normalization — integration, not a second abstraction**
+  - Validation failures are raised as the existing `ApiError` primitive with `status: 400`, `code: ERROR_CODES.VALIDATION_ERROR`, `message: "Request validation failed"`, and `details` = the issue list. The existing global error handler therefore renders them through the established envelope — no new error class, no second response-writing path, and no change to `error-handler.ts`.
+  - `details` is an **array** of `{ path, code, message }` (`ValidationIssue` in `types/api.types.ts`): `path` is the component-qualified location (`body.criteria.0.awardedMarks`, `params.id`, `query.round`), `code` is the Zod validation category (`invalid_type`, `too_small`, `invalid_format`, …), `message` is the schema-authored diagnostic. Only those three fields are exposed — no submitted value, no request body, no token.
+  - Status **400** is used for request-validation failures, matching the existing T-11 convention (Mongoose `ValidationError` → 400 `VALIDATION_ERROR`). The registry also maps 422 to `VALIDATION_ERROR`, but 422 is deliberately not used so that every invalid-input failure in the API has one status.
+  - Unexpected errors are untouched: a plain `Error` still produces 500 `INTERNAL_SERVER_ERROR` with the generic message and no `details`; an `ApiError` raised by application code keeps its own status/code. The validation layer never converts a programming error into a client error.
+
+  **Shared Zod primitives — `server/src/validators/common.ts`**
+  - `objectIdSchema` (24-hex MongoDB ObjectId) and `idParamsSchema` (`{ id }` route parameters), `nonEmptyString(maxLength)` (trim + non-empty + max length), `emailSchema`, `positiveNumberSchema`, `nonNegativeNumberSchema`, `roundIdentifierSchema`.
+  - Reuse over duplication: `roundIdentifierSchema` is `z.literal(ROUND_IDENTIFIERS)` — it reads the round vocabulary straight from `types/domain.types.ts`; `positiveNumberSchema` / `nonNegativeNumberSchema` refine with the existing `isPositiveNumber` / `isNonNegativeNumber` predicates from `utils/validation.ts`; `emailSchema` uses Zod's `z.email()`, which is *stricter* than the models' `/^\S+@\S+\.\S+$/` check, so anything the API accepts the models accept too.
+  - `utils/validation.ts` was **not** extended: it holds Mongoose validators for the model layer, while the Zod schemas are a separate concern for the HTTP layer. The two share predicates and vocabulary rather than sharing a file.
+  - The model-layer enums (`COMPETITION_STATUSES`, `EVALUATION_STATUSES`, `USER_ROLES`) were deliberately **not** mirrored into Zod: they live in model modules whose import registers a Mongoose model (a side effect the pure validation layer should not trigger), and no endpoint consumes them yet. When the first business route lands, those enums will be sourced from the model modules (or promoted to `types/domain.types.ts`) rather than duplicated.
+
+  **Canonical usage pattern for future route handlers**
+  ```ts
+  import { Router, type Response } from "express";
+  import { z } from "zod";
+  import { validate, type ValidatedRequest } from "../middleware/validate";
+  import { objectIdSchema } from "../validators";
+
+  const competitionParamsSchema = z.object({ competitionId: objectIdSchema });
+  const createCompetitionSchema = z.object({
+    name: z.string().trim().min(1),
+  });
+
+  const router: Router = Router();
+
+  router.get(
+    "/:competitionId",
+    validate({ params: competitionParamsSchema }),
+    (req: ValidatedRequest<{ params: typeof competitionParamsSchema }>, res: Response): void => {
+      // req.params.competitionId is typed as string
+    },
+  );
+
+  router.post(
+    "/",
+    validate({ body: createCompetitionSchema }),
+    (req: ValidatedRequest<{ body: typeof createCompetitionSchema }>, res: Response): void => {
+      // req.body is typed as { name: string }
+    },
+  );
+  ```
+  Rules that apply to every route: the schema constant is the single source of truth (the handler type is derived from it with `typeof`, never written by hand); validation is applied per route, never globally; the handler is registered *after* the middleware; a route that validates nothing simply omits `validate(...)`.
+
+  **Test infrastructure (new)**
+  - `server/test/validate.test.ts` and `server/test/app.test.ts` run on Node's built-in test runner (`node:test` + `node:assert/strict`) through the already-installed `tsx` — **no test-framework dependency was added**.
+  - `server/tsconfig.test.json` extends the strict base config with `noEmit` and `include: ["src/**/*.ts", "test/**/*.ts"]`; `npm test` runs `tsc -p tsconfig.test.json` (so the tests are type-checked, not just executed) and then `tsx --test test/**/*.test.ts`. The test files live outside `src/`, so `npm run build` never emits them into `dist/`.
+  - The validation suite composes its own app from the same middleware modules in the documented order (CORS → body parsers → routes → `notFoundHandler` → `errorHandler`) because `createApp()` mounts the 404 and error handlers last and therefore offers no route-injection point; the **real** `createApp()` is covered separately by the health, CORS and 404 regression tests.
+
+- **Files created:** `server/src/middleware/validate.ts`, `server/src/validators/common.ts`, `server/src/validators/index.ts`, `server/test/validate.test.ts`, `server/test/app.test.ts`, `server/tsconfig.test.json`
+- **Files modified:** `server/src/types/api.types.ts` (added the `ValidationIssue` / `ValidationIssueList` types), `server/package.json` (added the `test` script)
+- **Files deliberately NOT modified:** `server/src/app.ts`, `server/src/middleware/error-handler.ts`, `server/src/middleware/cors.ts`, `server/src/middleware/not-found.ts`, `server/src/utils/api-error.ts`, `server/src/utils/validation.ts`, `server/src/types/domain.types.ts`, every file under `server/src/models/`
+- **Dependencies added:** none (Zod 4.6.7 and tsx were already installed; `node:test` is part of Node 22)
+- **Verification commands:**
+  - `npm run typecheck` (`tsc --noEmit`)
+  - `npm run build` (`tsc -p tsconfig.json`)
+  - `npm test` (`tsc -p tsconfig.test.json && tsx --test test/**/*.test.ts`)
+  - live run of the built server: `PORT=3111 node dist/server.js` against the local `mongo:8` container
+- **Verification results (actual):**
+  - `npm run typecheck` — **clean**, exit code 0
+  - `npm run build` — **clean**, exit code 0; `dist/` contains `middleware/validate.js` and `validators/*.js` and contains **no** test files
+  - `npm test` — **27 passed / 0 failed** (6 suites):
+    - *health endpoints* (2): liveness 200 with the unchanged T-06 payload (no `error` key); readiness 503 `not_ready` / `disconnected` in the test process
+    - *cors policy* (5): configured origin allowed; loopback origin allowed outside production; disallowed origin receives **no** CORS headers; preflight 204 with `GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS` and `Content-Type,Authorization`; non-browser request served without CORS headers
+    - *error contract* (1): unmatched route still 404 `NOT_FOUND` with the standard envelope
+    - *request validation middleware* (16): valid input accepted **and normalized** (trim + `z.coerce`); invalid body rejected (400, two issues, paths `body.name` / `body.count`, categories `too_small` / `invalid_type`); invalid path parameter rejected (`params.id`); invalid query parameter rejected (`query.round`); multiple components validated together (all three echoed); issues from every failing component reported in one response; the documented envelope asserted (status, code, message, path without query string, ISO timestamp, `stack` only outside production); submitted values never echoed back; the downstream handler proven not to run on failure; an unexpected `Error` still yields 500 `INTERNAL_SERVER_ERROR` + `"Internal server error"` + no `details`; an application `ApiError(409)` still yields 409 `CONFLICT`; routes without validation unaffected; unknown body keys stripped; a missing body rejected; the 404 contract preserved; malformed JSON still a body-parser 400 `BAD_REQUEST` (not double-reported as a validation error)
+    - *shared validation utilities* (2): the round schema accepts 1 and 2 and rejects 3 and `"1"`; the ObjectId pattern accepts a valid id and rejects a short one and a missing one
+    - *handler typing* (1): the `@ts-expect-error` narrowing assertion compiles, i.e. the handler's `req.body` is genuinely narrowed
+  - live server (`node dist/server.js`, port 3111, live MongoDB): `GET /api/v1/health/live` → **200** `{"status":"ok",…}`; `GET /api/v1/health/ready` → **200** `{"status":"ready","database":"connected",…}`; `GET /api/v1/nope` → **404** `NOT_FOUND`; request with `Origin: http://localhost:5173` → `Access-Control-Allow-Origin: http://localhost:5173`; startup log unchanged (`[db] MongoDB connected` → `Server listening on http://localhost:3111`), i.e. the database startup lifecycle is intact
+- **Completion date:** 2026-10-21
+- **Known limitations:** no business route consumes the middleware yet (by scope — P-06 will add the first ones); the T-11 and T-12 probes remain throwaway scripts, so the error-contract and model assertions are still not re-runnable from the repo (P-10); there is no coverage reporting, no CI, and no linting; the `details` shape differs by source (an issue array for request validation, a field→message record for Mongoose validation) — unifying them would change the verified T-11 contract; 4xx responses still carry a `stack` outside production (pre-existing T-11 behaviour, kept for consistency); stripped unknown keys are not reported back to the client.
+
 ---
 
 ## D. In-Progress Tasks
@@ -290,17 +389,16 @@ _None. No task is currently started but unfinished._
 
 | ID | Task | Prerequisites |
 |----|------|---------------|
-| P-02 | Request validation layer (Zod schemas in `server/src/validators/`) | T-03 |
 | P-05 | Authentication/authorization (roles: admin, judge) | P-01, P-03 |
 | P-06 | Evaluation/submission REST API under `/api/v1` (controllers + routes) | P-01, P-02, P-05 |
 | P-07 | Ranking/scoring engine — **scoring rules not yet approved; must be specified before implementation** | P-01, P-06 |
 | P-08 | Live leaderboard API and real-time updates (delivery mechanism — polling vs Socket.IO — **not yet decided**) | P-07 |
 | P-09 | Frontend implementation (React + TS + Vite + Tailwind; auth, admin, judge, leaderboard pages) | P-06, P-08 |
-| P-10 | Automated tests (unit/integration) + test script | P-01…P-08 |
+| P-10 | Automated tests for the remaining layers (model, service, API) + coverage reporting — the test runner, `npm test` script and the validation / health / CORS suites now exist (T-13) | P-01…P-08 |
 | P-11 | Documentation: README content, `docs/` API reference | parallel |
 | P-12 | CI/lint tooling (ESLint/Prettier) — none configured | parallel |
 
-Tracked tasks: 12 completed (T-01…T-12, including P-04 delivered as T-10, P-03 delivered as T-11 and P-01 delivered as T-12) + 9 pending = 21 → **57% complete**.
+Tracked tasks: 13 completed (T-01…T-13, including P-04 delivered as T-10, P-03 delivered as T-11, P-01 delivered as T-12 and P-02 delivered as T-13) + 8 pending = 21 → **62% complete**.
 
 ---
 
@@ -332,6 +430,15 @@ Recorded only from decisions made in this project's implementation sessions.
 - **Eligibility (T-12):** participant eligibility is stored explicitly per round (not derived from panel membership or scores) so "who may be judged in round N" is answerable without joins; an ineligible round must state a reason.
 - **Evaluation uniqueness (T-12):** the unique index on `{competition, participant, round, judge}` covers drafts as well as submitted evaluations — a judge re-scores by updating the existing document, never by creating a second one. `draft → submitted` is the only implemented transition; there is no revision history.
 - **Validation plumbing (T-12):** value-only rules use `schema.path(...).validate(fn, "message")`; cross-field rules use a typed `pre("validate")` hook and `this.invalidate(path, message)`. Both produce ordinary Mongoose `ValidationError`s, so they render through the existing T-11 error envelope with no extra mapping code. Mongoose 9 has no `SchemaOptions.validate` and no `Schema.prototype.validate`.
+- **Request validation boundary (T-13):** one middleware, `validate({ body?, params?, query? })` in `server/src/middleware/validate.ts`, applied **per route** (never globally) and always registered *before* the handler. It is the only sanctioned way for untrusted input to enter the application layer.
+- **Validation mechanism (T-13):** Zod 4 `safeParse` only — the middleware never lets a Zod exception escape. All configured components are evaluated (fixed order body → params → query) and every failure is reported in one response; nothing is written back when any component fails.
+- **Write-back semantics (T-13):** the **parsed output** replaces the raw value on `req.body` / `req.params` / `req.query` (via `Object.defineProperty`), so schema transforms and coercions are what the handler sees. The raw request is not preserved anywhere.
+- **Type propagation (T-13):** `validate()` is generic over the schema map and returns `RequestHandler<ValidatedParams<S>, unknown, ValidatedBody<S>, ValidatedQuery<S>>`, so the validated shape flows through Express's own route generics. Handlers declare `ValidatedRequest<S>` with `typeof <schema constant>`; there are **no type assertions and no `any`** in the validation layer. Unvalidated components keep Express's defaults (`ParamsDictionary`, `ParsedQs`) and the body becomes `unknown`.
+- **Unknown keys (T-13):** Zod 4's default `z.object` behaviour is used — unknown keys are stripped, not rejected. This is the mass-assignment guard; `z.strictObject` is available per route when unknown keys must be an error.
+- **Validation errors (T-13):** raised as the existing `ApiError` (400, `VALIDATION_ERROR`, `"Request validation failed"`) with `details` = `ValidationIssue[]` (`path` component-qualified, `code` = Zod category, `message` = schema-authored). Request-validation failures use 400, matching the existing Mongoose-validation convention, so every invalid-input failure in the API has one status.
+- **Error-detail shape (T-13):** `details` is polymorphic — an issue array for request validation, a field→message record for Mongoose validation. The two were deliberately not unified because that would change the verified T-11 contract; `ErrorPayload.details` therefore stays `unknown` and consumers narrow it.
+- **Validation primitives (T-13):** Zod schemas live in `server/src/validators/`, Mongoose validators stay in `server/src/utils/validation.ts`. The two layers share the domain vocabulary (`ROUND_IDENTIFIERS`) and the numeric predicates (`isPositiveNumber`, `isNonNegativeNumber`) instead of duplicating them. Model-layer enums are not mirrored into Zod (see the model-typing decision).
+- **Testing (T-13):** Node's built-in test runner (`node:test`) executed through the installed `tsx`; `npm test` = `tsc -p tsconfig.test.json && tsx --test test/**/*.test.ts`. Tests live in `server/test/` (outside `src/`) so they are type-checked but never emitted into `dist/`. No test-framework dependency and no coverage tooling were added.
 - **Scoring rules:** none defined or approved yet. (No scoring/ranking rules have been specified; do not assume any.)
 
 ---
@@ -342,8 +449,8 @@ Recorded only from decisions made in this project's implementation sessions.
 2. **Startup/health tension:** `server.ts` aborts startup when the DB is unreachable, so under normal bootstrap the readiness endpoint cannot be reached during a total outage. Readiness 503 was verified via a direct `createApp()` harness (no DB connect) and readiness 200 was verified against the live database. A decision is needed on whether readiness should be observable during DB outage (would require decoupling listener startup from DB connect).
 3. ~~**`CLIENT_ORIGIN` is validated but unused**~~ — **resolved by T-10** (CORS middleware now consumes it). Remaining gap: only a single production origin is supported.
 4. **`.gitignore` line 1 ignores `.env.example`** — pre-existing rule, deliberately preserved; example env files are therefore not tracked in git.
-5. **Working tree is dirty** — `main` is at `e1a8fef` ("added backend"), on top of `5aa738a`, `22ed1f7`, `d7f4ecc` and `eac75a8` ("backend intialize"). The T-11 error contract and the first iteration of the T-12 models are already **committed**; the **uncommitted** changes are the T-12 validator corrections: modified `server/src/models/competition.model.ts`, `server/src/models/panel.model.ts`, `server/src/models/participant.model.ts`, `server/src/models/evaluation-parameter.model.ts`, `server/src/models/evaluation.model.ts` (replacing the definition-level `validate:` options with typed `schema.path(...).validate(fn, "message")` calls and the `pre("validate")` hook) plus `PROJECT_PROGRESS.md`. The corrections are behaviour-preserving in intent but **do change the validation messages** and they fix a silent bug: the Mongoose `validate: [fn1, fn2]` array form had registered only `fn1`, so `validateRoundProgression` was never running — the final version registers both, and the live probe now confirms the "round 2 active while round 1 pending" case is rejected.
-6. **No automated tests, linter, or CI** — verification is manual (`typecheck`, `build`, ad-hoc runtime probes). The T-11 and T-12 probes were throwaway scripts run from the OS temp directory and were not committed, so the 19 error-contract assertions and the 62 model assertions are **not** re-runnable from the repo (P-10).
+5. **Working tree is dirty** — `main` is at `e1a8fef` ("added backend"), on top of `5aa738a`, `22ed1f7`, `d7f4ecc` and `eac75a8` ("backend intialize"). The T-11 error contract and the first iteration of the T-12 models are already **committed**; the **uncommitted** changes are the T-12 validator corrections (`server/src/models/competition.model.ts`, `panel.model.ts`, `participant.model.ts`, `evaluation-parameter.model.ts`, `evaluation.model.ts` — replacing the definition-level `validate:` options with typed `schema.path(...).validate(fn, "message")` calls and the `pre("validate")` hook) plus the T-13 work (`server/src/middleware/validate.ts`, `server/src/validators/common.ts`, `server/src/validators/index.ts`, `server/src/types/api.types.ts`, `server/test/validate.test.ts`, `server/test/app.test.ts`, `server/tsconfig.test.json`, `server/package.json`) and `PROJECT_PROGRESS.md`. The T-12 corrections are behaviour-preserving in intent but **do change the validation messages** and they fix a silent bug: the Mongoose `validate: [fn1, fn2]` array form had registered only `fn1`, so `validateRoundProgression` was never running — the final version registers both, and the live probe now confirms the "round 2 active while round 1 pending" case is rejected.
+6. **Automated test coverage is partial; no linter and no CI** — **improved by T-13:** a committed, runnable test suite now exists (`server/test/`, `npm test`, 27 assertions covering the validation contract, the health endpoints, the CORS policy and the 404 envelope) and the tests are type-checked before they run. Remaining gaps: the T-11 error-contract probe (19 assertions) and the T-12 live-MongoDB model probe (62 assertions) are still throwaway scripts run from the OS temp directory and are **not** re-runnable from the repo, so the model layer and the service layer have no committed tests; there is no coverage reporting, no linter and no CI (P-10, P-12).
 7. **`client/` is entirely placeholder** — empty `package.json`/`tsconfig.json`/`vite.config.ts`/`App.tsx`/`main.tsx`; no dependencies installed; not verified in any way.
 8. **Empty `README.md` and `docs/`** — no developer onboarding or API documentation. The new error envelope and the domain model are not yet documented there (P-11).
 9. ~~**No error-handling middleware**~~ — **resolved by T-11** (global error handler + 404 handler + consistent error envelope). Remaining gap: the contract is not covered by automated tests (P-10) and is not yet written up in `docs/` (P-11).
@@ -356,6 +463,12 @@ Recorded only from decisions made in this project's implementation sessions.
 16. **No evaluation revision history** — a judge who re-scores overwrites the existing evaluation (the unique index forbids a second document for the same judge/participant/round). If per-revision auditability is required, a separate revision collection will be needed.
 17. **Parameter supersession is not modelled** — `EvaluationParameter.configVersion` versions a parameter, but nothing links a version to the one it supersedes and there is no "current version" query contract; that belongs to the service layer.
 18. **`models/index.ts` barrel is unused so far** — it exists for a single import surface, but no service or controller imports it yet (the model layer is not consumed by any route).
+19. **The validation middleware has no route consumer yet** — P-02 is infrastructure only; the first business route arrives with P-06. Until then the middleware is exercised by the test suite alone, so nothing mechanically prevents a future route from forgetting `validate(...)`.
+20. **`createApp()` offers no route-injection point** — the 404 and error handlers are mounted last, so a test cannot add routes to the real application. The validation suite therefore composes its own app from the same middleware modules in the documented order, while the real `createApp()` is covered by the separate health/CORS/404 tests. A later refactor could introduce a `createApp({ routers })` seam and remove the duplication.
+21. **Validation failures carry a stack outside production** — the pre-existing T-11 contract emits `stack` for 4xx as well as 5xx when `NODE_ENV !== "production"`. It is consistent with the rest of the API but noisy for a 400 caused by a malformed request body.
+22. **Stripped unknown keys are not reported** — a client that sends `role` or another unknown field gets no feedback; the field is silently removed. Schemas that need to tell the client must use `z.strictObject` instead of the default `z.object`.
+23. **The API email rule is stricter than the model rule** — `z.email()` rejects input the models' `/^\S+@\S+\.\S+$/` would accept. That direction is safe (the HTTP layer is the stricter gate), but the two rules are not literally identical and the model rule is not expressed as a Zod schema.
+24. **Validation schemas are not documented in `docs/`** — the canonical usage pattern currently exists only in this document (sections F and the T-13 entry); P-11 must carry it into the repository documentation together with the error contract.
 
 ---
 
