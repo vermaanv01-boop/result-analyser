@@ -217,6 +217,16 @@ evaluationSchema.index(
   { name: "evaluation_panel_round" },
 );
 
+evaluationSchema.index(
+  { competition: 1, round: 1, status: 1 },
+  { name: "evaluation_competition_round_status" },
+);
+
+evaluationSchema.index(
+  { panel: 1, round: 1, status: 1 },
+  { name: "evaluation_panel_round_status" },
+);
+
 export type EvaluationDocument = HydratedDocument<Evaluation>;
 
 export const Evaluation: Model<Evaluation> =

@@ -10,6 +10,10 @@ const envSchema = z.object({
     ? z.string().min(1, "MONGODB_URI is required in production")
     : z.string().min(1).default("mongodb://localhost:27017/student_ranking"),
   CLIENT_ORIGIN: z.url().default("http://localhost:5173"),
+  JWT_SECRET: isProduction
+    ? z.string().min(32, "JWT_SECRET must be at least 32 characters in production")
+    : z.string().min(8).default("karvaan-secret-jwt-key-minimum-32-chars-long-development"),
+  JWT_EXPIRES_IN: z.string().default("24h"),
 });
 
 const parsed = envSchema.safeParse(process.env);

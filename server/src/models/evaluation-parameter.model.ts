@@ -133,6 +133,16 @@ evaluationParameterSchema.index(
   { name: "evaluationParameter_competition_applicableRounds" },
 );
 
+evaluationParameterSchema.index(
+  { competition: 1, configVersion: 1 },
+  { name: "evaluationParameter_competition_configVersion" },
+);
+
+evaluationParameterSchema.index(
+  { competition: 1, isActive: 1, applicableRounds: 1 },
+  { name: "evaluationParameter_competition_isActive_applicableRounds" },
+);
+
 export type EvaluationParameterDocument = HydratedDocument<EvaluationParameter>;
 
 export const EvaluationParameter: Model<EvaluationParameter> =
