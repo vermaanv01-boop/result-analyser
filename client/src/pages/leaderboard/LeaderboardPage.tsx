@@ -24,7 +24,7 @@ export const LeaderboardPage: React.FC = () => {
   // Selected participant for detail modal
   const [detailEntry, setDetailEntry] = useState<RankedLeaderboardEntry | null>(null);
 
-  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimerRef = useRef<any>(null);
 
   // 1. Initial load of competitions
   useEffect(() => {
