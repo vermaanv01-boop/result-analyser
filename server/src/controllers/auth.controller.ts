@@ -7,6 +7,7 @@ import {
   registerParticipant,
 } from "../services/auth.service";
 import type {
+  activateJudgeSchema,
   createUserSchema,
   loginSchema,
   registerParticipantSchema,
@@ -78,7 +79,7 @@ export async function provisionUserHandler(
 }
 
 export async function activateJudgeHandler(
-  req: ValidatedRequest<{ body: { token: string; password: string } }>,
+  req: ValidatedRequest<{ body: typeof activateJudgeSchema }>,
   res: Response,
   next: NextFunction,
 ): Promise<void> {

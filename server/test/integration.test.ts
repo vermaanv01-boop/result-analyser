@@ -118,42 +118,52 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
   });
 
   test("admin provisions judges and non-admin cannot provision users", async () => {
-    // Admin provisions Judge 1
-    const createJudge1 = await fetch(`${baseUrl}/api/v1/auth/users`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
-      },
-      body: JSON.stringify({
-        name: "Judge Smith",
-        email: "judge.smith@karvaan.org",
-        password: "JudgePassword123!",
-        role: "judge",
-      }),
+    resetEmailTransporterForTests();
+    const originalSendMail = require("nodemailer").createTransport;
+    require("nodemailer").createTransport = () => ({
+      sendMail: async () => ({ messageId: "test" }),
     });
-    assert.equal(createJudge1.status, 201);
-    const j1Data = (await createJudge1.json()) as any;
-    judgeId = j1Data.user.id;
-    assert.equal(j1Data.user.role, "judge");
+    try {
+      // Admin provisions Judge 1
+      const createJudge1 = await fetch(`${baseUrl}/api/v1/auth/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Judge Smith",
+          email: "judge.smith@karvaan.org",
+          password: "JudgePassword123!",
+          role: "judge",
+        }),
+      });
+      assert.equal(createJudge1.status, 201);
+      const j1Data = (await createJudge1.json()) as any;
+      judgeId = j1Data.user.id;
+      assert.equal(j1Data.user.role, "judge");
 
-    // Admin provisions Judge 2
-    const createJudge2 = await fetch(`${baseUrl}/api/v1/auth/users`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
-      },
-      body: JSON.stringify({
-        name: "Judge Doe",
-        email: "judge.doe@karvaan.org",
-        password: "JudgePassword123!",
-        role: "judge",
-      }),
-    });
-    assert.equal(createJudge2.status, 201);
-    const j2Data = (await createJudge2.json()) as any;
-    otherJudgeId = j2Data.user.id;
+      // Admin provisions Judge 2
+      const createJudge2 = await fetch(`${baseUrl}/api/v1/auth/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Judge Doe",
+          email: "judge.doe@karvaan.org",
+          password: "JudgePassword123!",
+          role: "judge",
+        }),
+      });
+      assert.equal(createJudge2.status, 201);
+      const j2Data = (await createJudge2.json()) as any;
+      otherJudgeId = j2Data.user.id;
+    } finally {
+      require("nodemailer").createTransport = originalSendMail;
+      resetEmailTransporterForTests();
+    }
 
     // Judge 1 logs in
     const jLogin = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -167,6 +177,18 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
     assert.equal(jLogin.status, 200);
     const jLoginData = (await jLogin.json()) as any;
     judgeToken = jLoginData.token;
+
+    // Judge 2 logs in
+    const j2Login = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "judge.doe@karvaan.org",
+        password: "JudgePassword123!",
+      }),
+    });
+    const j2LoginData = (await j2Login.json()) as any;
+    otherJudgeToken = j2LoginData.token;
 
     // Judge 2 logs in
     const j2Login = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -1311,20 +1333,26 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
   });
 
   test("participant self-registration, re-login, profile, team update, and published results", async () => {
-    const password = "ParticipantPass123!";
-    const registerRes = await fetch(`${baseUrl}/api/v1/auth/register-participant`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        competitionId,
-        name: "Alice Developer",
-        registrationId: "KVN-2026-001",
-        email: "alice@student.edu",
-        password,
-        teamMembers: ["Alice Developer"],
-      }),
+    resetEmailTransporterForTests();
+    const originalSendMail = require("nodemailer").createTransport;
+    require("nodemailer").createTransport = () => ({
+      sendMail: async () => ({ messageId: "test" }),
     });
-    assert.equal(registerRes.status, 201);
+    try {
+      const password = "ParticipantPass123!";
+      const registerRes = await fetch(`${baseUrl}/api/v1/auth/register-participant`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          competitionId,
+          name: "Alice Developer",
+          registrationId: "KVN-2026-001",
+          email: "alice@student.edu",
+          password,
+          teamMembers: ["Alice Developer"],
+        }),
+      });
+      assert.equal(registerRes.status, 201);
     const registerData = (await registerRes.json()) as any;
     assert.ok(registerData.token);
     assert.equal(registerData.user.role, "participant");
@@ -1385,5 +1413,9 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
       headers: { Authorization: `Bearer ${loginData.token}` },
     });
     assert.equal(aliasRes.status, 200);
+    } finally {
+      require("nodemailer").createTransport = originalSendMail;
+      resetEmailTransporterForTests();
+    }
   });
 });
