@@ -310,6 +310,164 @@ tr:hover td {
   }
 }
 
+.judge-assignment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.judge-assignment-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-navy);
+}
+
+.judge-assignment-help,
+.judge-assignment-footnote {
+  font-size: 12px;
+  color: var(--color-slate);
+}
+
+.judge-assignment-footnote {
+  margin-top: 2px;
+}
+
+.judge-selection-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.judge-selection-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-ivory-surface);
+  font-size: 12px;
+  color: var(--color-navy);
+}
+
+.judge-selection-chip > span {
+  overflow-wrap: anywhere;
+}
+
+.judge-selection-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-slate);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.judge-selection-remove:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.judge-selection-remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.judge-selection-empty {
+  padding: 8px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-slate);
+  font-size: 12px;
+}
+
+.judge-picker-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-ivory-surface);
+  color: var(--color-slate);
+  font-size: 13px;
+}
+
+.judge-picker-state.judge-picker-error {
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border-color: rgba(142, 46, 46, 0.2);
+}
+
+.judge-picker-spinner {
+  border-color: rgba(181, 154, 101, 0.28);
+  border-top-color: var(--color-gold);
+}
+
+.judge-picker-options {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+}
+
+.judge-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+}
+
+.judge-picker-option:last-child {
+  border-bottom: none;
+}
+
+.judge-picker-option:hover {
+  background: var(--color-ivory-surface);
+}
+
+.judge-picker-option input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.judge-picker-option-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+}
+
+.judge-picker-option-copy span {
+  color: var(--color-slate);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.judge-picker-option.is-unavailable {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 /* Modal and Overlays */
 .modal-backdrop {
   position: fixed;

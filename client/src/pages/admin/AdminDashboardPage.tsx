@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { KARVAANLogo } from "../../components/common/KARVAANLogo";
+import { JudgeAssignmentSelect } from "../../components/forms/JudgeAssignmentSelect";
 import { api } from "../../services/api";
 import type {
   Competition,
@@ -30,6 +31,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [parameters, setParameters] = useState<EvaluationParameter[]>([]);
   const [judges, setJudges] = useState<User[]>([]);
+  const [judgesLoading, setJudgesLoading] = useState<boolean>(true);
+  const [judgesError, setJudgesError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressReport | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -46,13 +49,17 @@ export const AdminDashboardPage: React.FC = () => {
   // Modal in-flight and error states
   const [submittingJudge, setSubmittingJudge] = useState<boolean>(false);
   const [judgeModalError, setJudgeModalError] = useState<string | null>(null);
+  const [submittingPanel, setSubmittingPanel] = useState<boolean>(false);
+  const [panelModalError, setPanelModalError] = useState<string | null>(null);
   const [submittingParticipant, setSubmittingParticipant] = useState<boolean>(false);
   const [participantModalError, setParticipantModalError] = useState<string | null>(null);
+  const [updatingParticipantId, setUpdatingParticipantId] = useState<string | null>(null);
 
   // Form states
   const [newCompName, setNewCompName] = useState("");
   const [newCompDesc, setNewCompDesc] = useState("");
 
+  const [editingPanel, setEditingPanel] = useState<Panel | null>(null);
   const [newPanelName, setNewPanelName] = useState("");
   const [newPanelDesc, setNewPanelDesc] = useState("");
   const [newPanelJudges, setNewPanelJudges] = useState<string[]>([]);
@@ -92,12 +99,45 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   const loadJudges = async () => {
+    setJudgesLoading(true);
+    setJudgesError(null);
     try {
       const res = await api.getJudges();
       setJudges(res.judges);
     } catch (err: any) {
-      console.warn("Could not load judges list:", err.message);
+      setJudgesError(
+        err.message || "Could not load the judge directory. Please try again.",
+      );
+    } finally {
+      setJudgesLoading(false);
     }
+  };
+
+  const openCreatePanelModal = () => {
+    setEditingPanel(null);
+    setNewPanelName("");
+    setNewPanelDesc("");
+    setNewPanelJudges([]);
+    setPanelModalError(null);
+    setShowCreatePanel(true);
+    void loadJudges();
+  };
+
+  const openEditPanelModal = (panel: Panel) => {
+    setEditingPanel(panel);
+    setNewPanelName(panel.name);
+    setNewPanelDesc(panel.description ?? "");
+    setNewPanelJudges(panel.judges.map((judge) => judge._id));
+    setPanelModalError(null);
+    setShowCreatePanel(true);
+    void loadJudges();
+  };
+
+  const closePanelModal = () => {
+    if (submittingPanel) return;
+    setShowCreatePanel(false);
+    setEditingPanel(null);
+    setPanelModalError(null);
   };
 
   useEffect(() => {
@@ -212,23 +252,49 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handleCreatePanel = async (e: React.FormEvent) => {
+  const handleSavePanel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCompetitionId) return;
+
+    const trimmedName = newPanelName.trim();
+    const trimmedDescription = newPanelDesc.trim();
+
+    if (!trimmedName) {
+      setPanelModalError("Panel name is required.");
+      return;
+    }
+    if (newPanelJudges.length === 0) {
+      setPanelModalError("Select at least one active judge for this panel.");
+      return;
+    }
+
+    setSubmittingPanel(true);
+    setPanelModalError(null);
     try {
-      await api.createPanel(selectedCompetitionId, {
-        name: newPanelName,
-        description: newPanelDesc,
+      const payload = {
+        name: trimmedName,
+        description: trimmedDescription || undefined,
         judges: newPanelJudges,
-      });
-      notifySuccess(`Panel '${newPanelName}' created successfully`);
+      };
+
+      if (editingPanel) {
+        await api.updatePanel(selectedCompetitionId, editingPanel._id, payload);
+        notifySuccess(`Panel '${trimmedName}' updated successfully.`);
+      } else {
+        await api.createPanel(selectedCompetitionId, payload);
+        notifySuccess(`Panel '${trimmedName}' created successfully.`);
+      }
+
       setNewPanelName("");
       setNewPanelDesc("");
       setNewPanelJudges([]);
       setShowCreatePanel(false);
-      loadCompetitionData(selectedCompetitionId);
+      setEditingPanel(null);
+      await loadCompetitionData(selectedCompetitionId);
     } catch (err: any) {
-      setActionError(err.message);
+      setPanelModalError(err.message || "Failed to save panel.");
+    } finally {
+      setSubmittingPanel(false);
     }
   };
 
@@ -336,6 +402,32 @@ export const AdminDashboardPage: React.FC = () => {
       loadCompetitionData(selectedCompetitionId);
     } catch (err: any) {
       setActionError(err.message);
+    }
+  };
+
+  const handleAssignParticipantPanel = async (
+    participantId: string,
+    participantName: string,
+    panelId: string,
+  ) => {
+    if (!selectedCompetitionId) return;
+    setUpdatingParticipantId(participantId);
+    setActionError(null);
+    try {
+      await api.updateParticipant(selectedCompetitionId, participantId, {
+        panel: panelId || null,
+      });
+      const selectedPanel = panels.find((panel) => panel._id === panelId);
+      notifySuccess(
+        selectedPanel
+          ? `${participantName} assigned to '${selectedPanel.name}'.`
+          : `${participantName} moved to unassigned.`,
+      );
+      await loadCompetitionData(selectedCompetitionId);
+    } catch (err: any) {
+      setActionError(err.message || "Failed to update the participant's panel.");
+    } finally {
+      setUpdatingParticipantId(null);
     }
   };
 
@@ -585,10 +677,7 @@ export const AdminDashboardPage: React.FC = () => {
                 >
                   + Add Judge
                 </button>
-                <button
-                  className="btn btn-gold"
-                  onClick={() => setShowCreatePanel(true)}
-                >
+                <button className="btn btn-gold" onClick={openCreatePanelModal}>
                   + Create Panel
                 </button>
               </div>
@@ -602,6 +691,7 @@ export const AdminDashboardPage: React.FC = () => {
                     <th>Description</th>
                     <th>Assigned Judges</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -633,11 +723,20 @@ export const AdminDashboardPage: React.FC = () => {
                             {p.isActive ? "Active" : "Inactive"}
                           </span>
                         </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openEditPanelModal(p)}
+                          >
+                            Edit Panel
+                          </button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
+                      <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
                         No panels created for this competition yet.
                       </td>
                     </tr>
@@ -679,7 +778,6 @@ export const AdminDashboardPage: React.FC = () => {
                     <tr>
                       <th>Judge Name</th>
                       <th>Email</th>
-                      <th>Judge ID</th>
                       <th>Assigned Panels</th>
                       <th>Status</th>
                     </tr>
