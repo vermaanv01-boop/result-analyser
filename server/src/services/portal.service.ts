@@ -2,7 +2,11 @@ import { Types } from "mongoose";
 import { Competition, type CompetitionDocument } from "../models/competition.model";
 import { Evaluation } from "../models/evaluation.model";
 import { Panel } from "../models/panel.model";
-import { Participant, type ParticipantDocument } from "../models/participant.model";
+import {
+  Participant,
+  type ParticipantDocument,
+  type ParticipantEligibility,
+} from "../models/participant.model";
 import { User } from "../models/user.model";
 import {
   aggregateParticipantRoundScores,
@@ -21,7 +25,7 @@ export interface ParticipantProfileDTO {
   registrationId: string;
   email: string;
   teamMembers: string[];
-  eligibility: boolean;
+  eligibility: ParticipantEligibility[];
   competition: {
     id: string;
     name: string;
