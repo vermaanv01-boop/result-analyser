@@ -770,6 +770,282 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     assert.equal(submitP2.status, 201);
   });
 
+  test("rejects judges evaluating unassigned participants and rejects non-judge roles", async () => {
+    // Provision a participant account directly to prove non-judge roles are
+    // rejected without relying on the later self-registration test.
+    const { hashPassword } = await import("../src/services/auth.service");
+    const participantHash = await hashPassword("ParticipantPass123!");
+    await User.create({
+      name: "Gatekeeper Participant",
+      email: "gatekeeper@student.edu",
+      passwordHash: participantHash,
+      role: "participant",
+      isActive: true,
+    });
+    const participantLogin = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "gatekeeper@student.edu",
+        password: "ParticipantPass123!",
+      }),
+    });
+    assert.equal(participantLogin.status, 200);
+    const participantLoginData = (await participantLogin.json()) as any;
+    const localParticipantToken = participantLoginData.token as string;
+
+    // Judge 1 (assigned to Panel 1) attempts to evaluate Participant 2 but with
+    // Panel 2 in the payload: participant is not assigned to that panel -> 403.
+    const wrongPanel = await fetch(`${baseUrl}/api/v1/evaluations/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${judgeToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: participant2Id,
+        panel: panel2Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 10 },
+          { parameter: param2Id, awardedMarks: 10 },
+        ],
+      }),
+    });
+    assert.equal(wrongPanel.status, 403);
+
+    // A participant-held token cannot submit or save judge evaluations -> 403.
+    const participantSubmit = await fetch(`${baseUrl}/api/v1/evaluations/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localParticipantToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: participant1Id,
+        panel: panel1Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 10 },
+          { parameter: param2Id, awardedMarks: 10 },
+        ],
+      }),
+    });
+    assert.equal(participantSubmit.status, 403);
+
+    const participantDraft = await fetch(`${baseUrl}/api/v1/evaluations/draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localParticipantToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: participant1Id,
+        panel: panel1Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 10 },
+          { parameter: param2Id, awardedMarks: 10 },
+        ],
+      }),
+    });
+    assert.equal(participantDraft.status, 403);
+  });
+
+  test("rejects negative marks below the configured minimum", async () => {
+    const negativeMarks = await fetch(`${baseUrl}/api/v1/evaluations/draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${judgeToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: participant1Id,
+        panel: panel1Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: -5 },
+          { parameter: param2Id, awardedMarks: 10 },
+        ],
+      }),
+    });
+    assert.equal(negativeMarks.status, 400);
+  });
+
+  test("saves a draft, allows reselection for the same judge, and locks after submission", async () => {
+    // Create a dedicated Panel 2 participant eligible for the active Round 1.
+    const createPanel2Participant = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/participants`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Draft Workflow Candidate",
+          registrationId: "KVN-2026-DRAFT",
+          email: "draft.candidate@student.edu",
+          panel: panel2Id,
+        }),
+      },
+    );
+    assert.equal(createPanel2Participant.status, 201);
+    const draftCandidate = (await createPanel2Participant.json()) as any;
+    const draftCandidateId = draftCandidate.participant._id as string;
+
+    await Participant.findByIdAndUpdate(draftCandidateId, {
+      $pull: { eligibility: { round: 1 } },
+    });
+    await Participant.findByIdAndUpdate(draftCandidateId, {
+      $push: { eligibility: { round: 1, eligible: true, ineligibleReason: "" } },
+    });
+
+    // Draft saves are repeatable for the same judge and reuse one record.
+    const draft1 = await fetch(`${baseUrl}/api/v1/evaluations/draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${otherJudgeToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: draftCandidateId,
+        panel: panel2Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 10 },
+          { parameter: param2Id, awardedMarks: 10 },
+        ],
+      }),
+    });
+    assert.equal(draft1.status, 200);
+    const draft1Data = (await draft1.json()) as any;
+    assert.equal(draft1Data.evaluation.status, "draft");
+    const evaluationId = draft1Data.evaluation._id;
+
+    const draft2 = await fetch(`${baseUrl}/api/v1/evaluations/draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${otherJudgeToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: draftCandidateId,
+        panel: panel2Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 20 },
+          { parameter: param2Id, awardedMarks: 30 },
+        ],
+      }),
+    });
+    assert.equal(draft2.status, 200);
+    const draft2Data = (await draft2.json()) as any;
+    assert.equal(draft2Data.evaluation._id, evaluationId);
+    assert.equal(draft2Data.evaluation.status, "draft");
+
+    // Finalize the draft.
+    const finalize = await fetch(`${baseUrl}/api/v1/evaluations/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${otherJudgeToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: draftCandidateId,
+        panel: panel2Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 20 },
+          { parameter: param2Id, awardedMarks: 30 },
+        ],
+      }),
+    });
+    assert.equal(finalize.status, 201);
+    const finalizeData = (await finalize.json()) as any;
+    assert.equal(finalizeData.evaluation.status, "submitted");
+    assert.ok(finalizeData.evaluation.submittedAt);
+
+    // Post-submission edits are rejected (409 Conflict).
+    const postSubmitDraft = await fetch(`${baseUrl}/api/v1/evaluations/draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${otherJudgeToken}`,
+      },
+      body: JSON.stringify({
+        competition: competitionId,
+        participant: draftCandidateId,
+        panel: panel2Id,
+        round: 1,
+        scores: [
+          { parameter: param1Id, awardedMarks: 5 },
+          { parameter: param2Id, awardedMarks: 5 },
+        ],
+      }),
+    });
+    assert.equal(postSubmitDraft.status, 409);
+
+    // A different judge cannot read another judge's evaluation by ID -> 403.
+    const otherJudgeRead = await fetch(
+      `${baseUrl}/api/v1/evaluations/${evaluationId}`,
+      { headers: { Authorization: `Bearer ${judgeToken}` } },
+    );
+    assert.equal(otherJudgeRead.status, 403);
+
+    // The owning judge can read their own evaluation by ID.
+    const ownerRead = await fetch(
+      `${baseUrl}/api/v1/evaluations/${evaluationId}`,
+      { headers: { Authorization: `Bearer ${otherJudgeToken}` } },
+    );
+    assert.equal(ownerRead.status, 200);
+    const ownerReadData = (await ownerRead.json()) as any;
+    assert.equal(ownerReadData.evaluation.status, "submitted");
+
+    // The administrator can read any evaluation.
+    const adminRead = await fetch(
+      `${baseUrl}/api/v1/evaluations/${evaluationId}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    assert.equal(adminRead.status, 200);
+
+    // A participant cannot read evaluations through the judge-scoped endpoint.
+    const { hashPassword: hashPw } = await import("../src/services/auth.service");
+    const readerHash = await hashPw("ParticipantPass123!");
+    await User.create({
+      name: "Read Gate Participant",
+      email: "read.gate@student.edu",
+      passwordHash: readerHash,
+      role: "participant",
+      isActive: true,
+    });
+    const readerLogin = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "read.gate@student.edu",
+        password: "ParticipantPass123!",
+      }),
+    });
+    const readerLoginData = (await readerLogin.json()) as any;
+    const participantRead = await fetch(
+      `${baseUrl}/api/v1/evaluations/${evaluationId}`,
+      { headers: { Authorization: `Bearer ${readerLoginData.token}` } },
+    );
+    assert.equal(participantRead.status, 403);
+
+    // Deactivate the dedicated candidate so later leaderboard and progress
+    // assertions remain scoped to the two original participants.
+    await Participant.findByIdAndUpdate(draftCandidateId, { isActive: false });
+  });
+
   test("closes Round 1, rejects post-closure submissions, and qualifies participants for Round 2", async () => {
     // Close Round 1
     const closeR1 = await fetch(

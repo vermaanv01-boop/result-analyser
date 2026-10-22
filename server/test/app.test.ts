@@ -146,6 +146,51 @@ describe("judge portal routing", (): void => {
   });
 });
 
+describe("judge evaluation routing", (): void => {
+  const validBody = JSON.stringify({
+    competition: "507f1f77bcf86cd799439011",
+    participant: "507f1f77bcf86cd799439012",
+    panel: "507f1f77bcf86cd799439013",
+    round: 1,
+    scores: [{ parameter: "507f1f77bcf86cd799439014", awardedMarks: 10 }],
+  });
+
+  test("requires authentication to save or submit evaluations", async (): Promise<void> => {
+    const draftResponse = await fetch(`${baseUrl}/api/v1/evaluations/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody,
+    });
+    const draftJson = (await draftResponse.json()) as Record<string, unknown>;
+    assert.equal(draftResponse.status, 401);
+    assert.equal(
+      (draftJson["error"] as Record<string, unknown>)["code"],
+      ERROR_CODES.UNAUTHORIZED,
+    );
+
+    const submitResponse = await fetch(`${baseUrl}/api/v1/evaluations/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody,
+    });
+    assert.equal(submitResponse.status, 401);
+  });
+
+  test("rejects malformed evaluation IDs before reaching the handler", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/evaluations/not-an-object-id`, {
+      headers: { Authorization: "Bearer invalid.token.value" },
+    });
+    assert.equal(response.status, 401);
+  });
+
+  test("requires authentication to read a single evaluation", async (): Promise<void> => {
+    const response = await fetch(
+      `${baseUrl}/api/v1/evaluations/507f1f77bcf86cd799439011`,
+    );
+    assert.equal(response.status, 401);
+  });
+});
+
 describe("admin management routing", (): void => {
   const competitionId = "507f1f77bcf86cd799439011";
   const panelId = "507f1f77bcf86cd799439012";

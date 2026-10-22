@@ -51,7 +51,10 @@ export async function getEvaluationHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const evaluation = await getEvaluationById(req.params.id);
+    const evaluation = await getEvaluationById(req.params.id, {
+      id: req.user!.id,
+      role: req.user!.role,
+    });
     res.status(200).json({ evaluation });
   } catch (error) {
     next(error);

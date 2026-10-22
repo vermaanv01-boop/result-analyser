@@ -40,6 +40,7 @@ router.get(
 
 router.get(
   "/:id",
+  requireRole("judge", "admin"),
   validate({ params: idParamsSchema }),
   getEvaluationHandler,
 );

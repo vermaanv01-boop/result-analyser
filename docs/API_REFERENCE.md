@@ -285,9 +285,21 @@ Save or update a work-in-progress draft evaluation. Drafts do not seal scores an
 ### `POST /evaluations/submit`
 Finalize and permanently seal an evaluation.
 - **Authorization**: `judge` or `admin`
-- **Validation**: Enforces that all active round parameters are scored and `awardedMarks <= maxMarks`.
-- **Lock-in**: Transitions status to `submitted` with `submittedAt` timestamp. Any subsequent call returns **HTTP 409 Conflict**.
-- **Response (200)**: `{ "evaluation": { "status": "submitted", "submittedAt": "...", ... } }`
+- **Validation**: Enforces that all active round parameters are scored, `0 <= awardedMarks`, and `awardedMarks <= maxMarks`.
+- **Lock-in**: Transitions status to `submitted` with `submittedAt` timestamp. Any subsequent submission or draft update returns **HTTP 409 Conflict**.
+- **Response (201)**: `{ "evaluation": { "status": "submitted", "submittedAt": "...", ... } }`
+
+### `GET /evaluations/:id`
+Retrieve a single evaluation by ID.
+- **Authorization**: `judge` or `admin`
+- **Access Control**: Administrators may read any evaluation. A judge may only read an evaluation they own; reading another judge's evaluation returns **HTTP 403 Forbidden**. Participants and other roles are rejected with **HTTP 403 Forbidden**.
+- **Response (200)**: `{ "evaluation": { ... } }`
+
+### `GET /evaluations`
+List evaluations with optional filters.
+- **Authorization**: `admin` only
+- **Query Parameters**: `competition`, `panel`, `participant`, `judge`, `round` (1 | 2), `status` (draft | submitted)
+- **Response (200)**: `{ "evaluations": [ ... ] }`
 
 ---
 

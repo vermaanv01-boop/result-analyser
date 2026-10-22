@@ -233,7 +233,10 @@ export async function getEvaluations(filters: {
     .sort({ updatedAt: -1 });
 }
 
-export async function getEvaluationById(id: string): Promise<EvaluationDocument> {
+export async function getEvaluationById(
+  id: string,
+  requester: { id: string; role: string },
+): Promise<EvaluationDocument> {
   const evalDoc = await Evaluation.findById(id)
     .populate("participant", "name registrationId")
     .populate("judge", "name email")
@@ -241,6 +244,27 @@ export async function getEvaluationById(id: string): Promise<EvaluationDocument>
 
   if (!evalDoc) {
     throw ApiError.notFound("Evaluation not found");
+  }
+
+  // Administrators may inspect any evaluation. Judges may only read their own
+  // evaluations; other roles are rejected outright. The judge identity is
+  // derived from the verified JWT principal, never from the request payload.
+  if (requester.role === "admin") {
+    return evalDoc;
+  }
+
+  if (requester.role !== "judge") {
+    throw ApiError.forbidden("Only assigned judges may read evaluations");
+  }
+
+  const ownerId =
+    typeof evalDoc.judge === "object" && evalDoc.judge !== null
+      ? ((evalDoc.judge as unknown as { _id: Types.ObjectId })._id?.toString() ??
+        "")
+      : String(evalDoc.judge);
+
+  if (ownerId !== requester.id) {
+    throw ApiError.forbidden("Judges may only read their own evaluations");
   }
 
   return evalDoc;
