@@ -90,7 +90,7 @@ export const LoginPage: React.FC = () => {
           Portal Authentication
         </h2>
         <p style={{ color: "var(--color-slate)", fontSize: "13px", marginBottom: "24px" }}>
-          Enter authorized administrative or judge credentials
+          Sign in to access your administrative, judge, or participant dashboard
         </p>
 
         {error && (
@@ -127,7 +127,7 @@ export const LoginPage: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. admin@karvaan.org"
+              placeholder="e.g. participant@university.edu"
               required
               autoFocus
             />
@@ -169,11 +169,29 @@ export const LoginPage: React.FC = () => {
             marginTop: "24px",
             paddingTop: "20px",
             borderTop: "1px solid var(--color-border-subtle)",
-            fontSize: "12px",
-            color: "var(--color-slate)",
+            fontSize: "13px",
+            color: "var(--color-navy)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
           }}
         >
-          Account access is restricted and provisioned by administrators.
+          <div>
+            Participating in a competition?{" "}
+            <Link
+              to="/register"
+              style={{
+                color: "var(--color-navy)",
+                fontWeight: 700,
+                textDecoration: "underline",
+              }}
+            >
+              Register here
+            </Link>
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--color-slate)" }}>
+            Judge and admin access is provisioned by the event committee.
+          </div>
         </div>
       </div>
     </div>
