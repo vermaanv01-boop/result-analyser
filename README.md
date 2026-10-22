@@ -73,6 +73,13 @@ Every feature listed below is fully implemented, strictly typed, and covered by 
 - **Score Breakdown Modal:** Click any participant row to inspect individual judge evaluations and round completeness.
 - **Print & Export Layout:** Clean `@media print` formatting for official PDF export or printing.
 
+### Participant Portal & Self-Registration
+- **Participant Self-Registration:** Students and teams self-register (`POST /api/v1/auth/register-participant` or `/register` UI) by selecting an active competition, setting registration ID, email, credentials, and teammates.
+- **Dedicated Participant Dashboard:** Direct access (`/participant`) displaying enrolled competition status, assigned evaluation panel, room allocations, and round qualification statuses.
+- **Dynamic Team Management:** Participants can view and modify their active team roster inline (`PATCH /api/v1/portal/team`).
+- **Granular Criteria Breakdown:** Real-time visibility into per-criterion marks, weights, and percentage attainment across evaluated rounds once released.
+- **Print-Ready Official Scorecard:** Built-in certificate and official evaluation scorecard layout ready for physical printing or PDF generation (`window.print()`).
+
 ---
 
 ## 3. Technology Stack
