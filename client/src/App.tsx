@@ -5,8 +5,10 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { LoginPage } from "./pages/auth/LoginPage";
+import { RegisterPage } from "./pages/auth/RegisterPage";
 import { JudgePortalPage } from "./pages/judge/JudgePortalPage";
 import { LeaderboardPage } from "./pages/leaderboard/LeaderboardPage";
+import { ParticipantPortalPage } from "./pages/participant/ParticipantPortalPage";
 
 export const App: React.FC = () => {
   return (
@@ -18,7 +20,18 @@ export const App: React.FC = () => {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
+
+              {/* Protected Participant Portal (Participant + Admin) */}
+              <Route
+                path="/participant"
+                element={
+                  <ProtectedRoute allowedRoles={["participant", "admin"]}>
+                    <ParticipantPortalPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected Judge Portal (Judge + Admin) */}
               <Route

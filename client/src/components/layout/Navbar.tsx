@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { KARVAANLogo } from "../common/KARVAANLogo";
 
 export const Navbar: React.FC = () => {
-  const { user, logout, isAdmin, isJudge } = useAuth();
+  const { user, logout, isAdmin, isJudge, isParticipant } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -53,6 +53,23 @@ export const Navbar: React.FC = () => {
           >
             Live Leaderboard
           </Link>
+
+          {(isParticipant || isAdmin) && (
+            <Link
+              to="/participant"
+              style={{
+                padding: "8px 14px",
+                borderRadius: "4px",
+                fontSize: "14px",
+                fontWeight: 600,
+                color: isActive("/participant") ? "var(--color-gold)" : "#E0E5EC",
+                background: isActive("/participant") ? "rgba(181, 154, 101, 0.15)" : "transparent",
+                transition: "all 0.15s",
+              }}
+            >
+              Participant Portal
+            </Link>
+          )}
 
           {(isJudge || isAdmin) && (
             <Link
@@ -123,9 +140,25 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
         ) : (
-          <Link to="/login" className="btn btn-gold" style={{ padding: "7px 16px" }}>
-            Sign In
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Link
+              to="/register"
+              style={{
+                padding: "6px 14px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--color-gold)",
+                border: "1px solid rgba(181, 154, 101, 0.5)",
+                borderRadius: "4px",
+                transition: "all 0.15s",
+              }}
+            >
+              Register
+            </Link>
+            <Link to="/login" className="btn btn-gold" style={{ padding: "7px 16px" }}>
+              Sign In
+            </Link>
+          </div>
         )}
       </div>
     </nav>
