@@ -14,6 +14,7 @@ export const ParticipantPortalPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resultsError, setResultsError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<"scores" | "profile" | "scorecard">("scores");
 
@@ -28,22 +29,20 @@ export const ParticipantPortalPage: React.FC = () => {
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
     setError(null);
+    setResultsError(null);
 
     try {
       const [profileRes, resultsRes] = await Promise.all([
         api.getParticipantProfile(),
         api.getParticipantResults().catch((err) => {
-          // If evaluations not yet generated or handled gracefully
-          console.warn("Could not load results:", err);
+          setResultsError(err.message || "Failed to load evaluation results.");
           return null;
         }),
       ]);
 
       setProfile(profileRes.participant);
       setEditableMembers(profileRes.participant.teamMembers || []);
-      if (resultsRes) {
-        setResults(resultsRes);
-      }
+      setResults(resultsRes);
     } catch (err: any) {
       setError(err.message || "Failed to load participant data.");
     } finally {
@@ -71,6 +70,7 @@ export const ParticipantPortalPage: React.FC = () => {
   const handleSaveTeam = async () => {
     setSavingTeam(true);
     setTeamSuccessMessage(null);
+    setError(null);
     try {
       const finalMembers = [...editableMembers];
       if (newMemberName.trim() && !finalMembers.includes(newMemberName.trim())) {
@@ -310,6 +310,24 @@ export const ParticipantPortalPage: React.FC = () => {
       </div>
 
       {/* Global Alerts / Messages */}
+      {error && (
+        <div
+          className="no-print"
+          style={{
+            padding: "12px 16px",
+            background: "var(--color-danger-bg)",
+            color: "var(--color-danger)",
+            border: "1px solid rgba(142, 46, 46, 0.25)",
+            borderRadius: "var(--radius-sm)",
+            fontSize: "14px",
+            marginBottom: "20px",
+            fontWeight: 500,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       {teamSuccessMessage && (
         <div
           className="no-print"
@@ -331,6 +349,30 @@ export const ParticipantPortalPage: React.FC = () => {
       {/* TAB 1: SCORES & PERFORMANCE */}
       {activeTab === "scores" && (
         <div>
+          {resultsError && (
+            <div
+              className="card"
+              style={{
+                padding: "16px 20px",
+                marginBottom: "20px",
+                borderColor: "rgba(142, 46, 46, 0.3)",
+                background: "var(--color-danger-bg)",
+                color: "var(--color-danger)",
+                fontSize: "14px",
+              }}
+            >
+              <strong>Results could not be loaded.</strong> {resultsError}
+              <button
+                type="button"
+                onClick={() => loadData(true)}
+                className="btn btn-secondary"
+                style={{ marginLeft: "12px", padding: "4px 10px", fontSize: "12px" }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Quick Metrics Bar */}
           <div
             style={{

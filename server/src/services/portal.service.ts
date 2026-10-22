@@ -7,12 +7,9 @@ import {
   type ParticipantDocument,
   type ParticipantEligibility,
 } from "../models/participant.model";
-import { User } from "../models/user.model";
 import {
   aggregateParticipantRoundScores,
-  calculateJudgeEvaluationScore,
   calculateParticipantOverallScore,
-  type CriterionScoreDetail,
   type ParticipantRoundResult,
   type RawJudgeEvaluation,
 } from "./scoring.service";
@@ -176,7 +173,7 @@ export async function getParticipantResults(
       evalsByRound.set(round, []);
     }
     evalsByRound.get(round)!.push({
-      judgeId: evaluation.judge._id.toString(),
+      judgeId: evaluation.judge.toString(),
       criteria: evaluation.criteria,
     });
 

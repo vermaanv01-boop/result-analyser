@@ -21,6 +21,8 @@ export function createApp(): Express {
   app.use("/api/v1/competitions", competitionRoutes);
   app.use("/api/v1/evaluations", evaluationRoutes);
   app.use("/api/v1/judge", judgeRoutes);
+  app.use("/api/v1/portal", portalRoutes);
+  // Backward-compatible alias for clients using the participant-prefixed path
   app.use("/api/v1/participant", portalRoutes);
 
   app.use(notFoundHandler);
