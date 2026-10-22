@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { KARVAANLogo } from "../../components/common/KARVAANLogo";
+import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import type {
   Evaluation,
   EvaluationParameter,
-  Panel,
+  JudgeAssignedPanel,
   RoundIdentifier,
 } from "../../types/api";
 
@@ -22,8 +23,13 @@ interface PanelData {
   participants: PanelParticipant[];
 }
 
+function getCompetitionName(panel: JudgeAssignedPanel): string {
+  return typeof panel.competition === "string" ? "Assigned competition" : panel.competition.name;
+}
+
 export const JudgePortalPage: React.FC = () => {
-  const [panels, setPanels] = useState<Panel[]>([]);
+  const { user } = useAuth();
+  const [panels, setPanels] = useState<JudgeAssignedPanel[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string>("");
   const [panelData, setPanelData] = useState<PanelData | null>(null);
   const [parameters, setParameters] = useState<EvaluationParameter[]>([]);
@@ -31,6 +37,7 @@ export const JudgePortalPage: React.FC = () => {
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [panelsError, setPanelsError] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState<boolean>(false);
   const [submittingEval, setSubmittingEval] = useState<boolean>(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState<boolean>(false);
@@ -52,16 +59,21 @@ export const JudgePortalPage: React.FC = () => {
   const loadPanels = async () => {
     try {
       setLoading(true);
+      setPanelsError(null);
       const res = await api.getJudgePanels();
       setPanels(res.panels || []);
       if (res.panels && res.panels.length > 0) {
         setSelectedPanelId(res.panels[0]._id);
+      } else {
+        setSelectedPanelId("");
       }
     } catch (err: any) {
-      setFeedbackMessage({
-        type: "error",
-        text: err.message || "Failed to load assigned judge panels.",
-      });
+      setPanels([]);
+      setSelectedPanelId("");
+      setPanelData(null);
+      setParameters([]);
+      setMyEvaluations([]);
+      setPanelsError(err.message || "Failed to load your assigned judge panels.");
     } finally {
       setLoading(false);
     }
@@ -263,11 +275,16 @@ export const JudgePortalPage: React.FC = () => {
   ).length;
 
   const totalParticipantsCount = panelData?.participants.length || 0;
+  const pendingCount = Math.max(totalParticipantsCount - completedCount, 0);
 
   return (
-    <div style={{ padding: "32px 24px", maxWidth: "1400px", margin: "0 auto" }}>
+    <div
+      className="judge-page"
+      style={{ padding: "32px 24px", maxWidth: "1400px", margin: "0 auto" }}
+    >
       {/* Page Header */}
       <div
+        className="judge-page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -286,6 +303,21 @@ export const JudgePortalPage: React.FC = () => {
             <p style={{ color: "var(--color-slate)", fontSize: "14px" }}>
               Select assigned panel and score participant criteria in real-time.
             </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+                marginTop: "8px",
+                fontSize: "13px",
+                color: "var(--color-slate)",
+              }}
+            >
+              <span className="badge badge-draft">Judge</span>
+              <strong style={{ color: "var(--color-navy)" }}>{user?.name}</strong>
+              <span>{user?.email}</span>
+            </div>
           </div>
         </div>
 
@@ -353,11 +385,66 @@ export const JudgePortalPage: React.FC = () => {
         </div>
       )}
 
+      {panels.length > 0 && (
+        <div className="judge-overview">
+          <div className="card judge-stat-card">
+            <div className="judge-stat-label">Assigned Panels</div>
+            <div className="judge-stat-value">{panels.length}</div>
+            <div className="judge-stat-detail">
+              {panels.map((panel) => (
+                <div key={panel._id}>
+                  <strong>{panel.name}</strong>
+                  <span>{getCompetitionName(panel)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card judge-stat-card">
+            <div className="judge-stat-label">Selected Panel Participants</div>
+            <div className="judge-stat-value">
+              {panelData ? totalParticipantsCount : "-"}
+            </div>
+            <div className="judge-stat-detail">
+              <span>{panelData?.panel.name || "Loading panel details..."}</span>
+            </div>
+          </div>
+
+          <div className="card judge-stat-card">
+            <div className="judge-stat-label">Completed Evaluations</div>
+            <div className="judge-stat-value">{panelData ? completedCount : "-"}</div>
+            <div className="judge-stat-detail">
+              <span>Submitted for the selected panel</span>
+            </div>
+          </div>
+
+          <div className="card judge-stat-card">
+            <div className="judge-stat-label">Pending Evaluations</div>
+            <div className="judge-stat-value">{panelData ? pendingCount : "-"}</div>
+            <div className="judge-stat-detail">
+              <span>Participants awaiting submission</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading && !panelData ? (
         <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "var(--color-navy)" }}>
             Loading Judge Panels and Criteria...
           </div>
+        </div>
+      ) : panelsError ? (
+        <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
+          <h2 style={{ fontSize: "20px", color: "var(--color-danger)", marginBottom: "8px" }}>
+            Unable to Load Judge Dashboard
+          </h2>
+          <p style={{ color: "var(--color-slate)", maxWidth: "560px", margin: "0 auto 20px" }}>
+            {panelsError}
+          </p>
+          <button onClick={loadPanels} className="btn btn-gold">
+            Retry
+          </button>
         </div>
       ) : panels.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
@@ -365,7 +452,10 @@ export const JudgePortalPage: React.FC = () => {
             No Panels Assigned
           </h2>
           <p style={{ color: "var(--color-slate)", maxWidth: "500px", margin: "0 auto" }}>
-            You have not been assigned to any judging panel yet. Please contact the competition administrator to assign you to a panel.
+            No evaluation panels have been assigned to your account yet.
+          </p>
+          <p style={{ color: "var(--color-slate)", maxWidth: "500px", margin: "8px auto 0", fontSize: "13px" }}>
+            Please contact the competition administrator if you believe this is an error.
           </p>
         </div>
       ) : (
@@ -426,14 +516,7 @@ export const JudgePortalPage: React.FC = () => {
           </div>
 
           {/* Main 2-Column Evaluation Workspace */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "340px 1fr",
-              gap: "24px",
-              alignItems: "start",
-            }}
-          >
+          <div className="judge-workspace">
             {/* Left Column: Participant Roster */}
             <div className="card" style={{ padding: "16px" }}>
               <div style={{ marginBottom: "12px" }}>

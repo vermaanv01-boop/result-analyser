@@ -286,12 +286,12 @@ Finalize and permanently seal an evaluation.
 
 ### `GET /judge/panels`
 Returns all panels to which the authenticated judge is assigned.
-- **Authorization**: `judge` or `admin`
+- **Authorization**: `judge` only
 - **Response (200)**: `{ "panels": [ ... ] }`
 
 ### `GET /judge/panels/:panelId/participants`
 Returns the participant roster for a panel with the current round and judge's individual evaluation status (`none` | `draft` | `submitted`) for each participant.
-- **Authorization**: `judge` assigned to panel or `admin`
+- **Authorization**: `judge` assigned to the panel only
 - **Response (200)**:
   ```json
   {
@@ -311,7 +311,7 @@ Returns the participant roster for a panel with the current round and judge's in
 
 ### `GET /judge/evaluations`
 Returns all draft and submitted evaluations submitted by the authenticated judge.
-- **Authorization**: `judge` or `admin`
+- **Authorization**: `judge` only
 - **Response (200)**: `{ "evaluations": [ ... ] }`
 
 ---

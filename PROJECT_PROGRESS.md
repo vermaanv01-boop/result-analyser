@@ -11,11 +11,11 @@ Last updated: 2026-10-22
 
 - **Project name:** Student Evaluation, Ranking & Live Leaderboard System (KARVAAN)
 - **Technology stack:**
-  - Frontend: React + TypeScript + Vite + Tailwind CSS (scaffold placeholders only; not started)
+  - Frontend: React + TypeScript + Vite with a custom CSS design system
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 23 of 23 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02 delivered and verified)
+- **Overall completion status:** 24 of 24 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24 delivered and verified)
 
 ---
 
@@ -515,6 +515,26 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Remaining defects:** None identified in the Participant Portal workflow during this phase. Leaderboard APIs remain authenticated by design; anonymous visitors now receive a clear error instead of a misleading empty result.
 - **Completion date:** 2026-10-22
 
+### T-24 — Dedicated Judge Login and Judge Dashboard (verified)
+
+- **Implementation summary:**
+  - Reused the existing `User` model, bcrypt password hashes, `/api/v1/auth/login` endpoint, JWT issuance/verification, `AuthContext`, and `authenticate`/`requireRole` middleware. No duplicate authentication system or password storage was introduced.
+  - Added the public `/judge/login` page with the existing KARVAAN logo, email and password fields, show/hide password control, required-field and email validation, disabled/loading submit state, invalid-credential and network-error messaging, and the existing ivory/gold/navy design palette.
+  - Judge login checks the role returned by the backend after authentication. Non-judge accounts are immediately logged out and told to use the general sign-in page. Successful judges are redirected to `/judge`; `ProtectedRoute` now supports a route-specific login path and role-aware dashboard redirects to prevent loops.
+  - Restricted `/judge` to the `judge` role only. Added visible Judge Login links to the public navigation and the general login page. Administrator and participant login behavior remains unchanged.
+  - Enforced judge-only authorization on the backend for `/api/v1/judge/panels`, `/api/v1/judge/panels/:id/participants`, and `/api/v1/judge/evaluations` with `requireRole("judge")`. Removed the previous administrator bypass from the panel-participant handler.
+  - Enhanced the existing judge portal as the initial dashboard: displays the authenticated judge's name and email, all assigned panels with competition labels, selected-panel participant count, and completed/pending evaluation counts. Existing draft, submit, eligibility, and immutable-submission workflows remain unchanged.
+  - Assignment and participant responses continue to expose internal references for existing workflows while the UI displays human-readable panel, competition, participant, and registration labels. Empty and failed panel loads now show the exact unassigned message or a retryable error instead of fabricated data.
+- **Files changed:** `server/src/routes/judge.routes.ts`, `server/src/controllers/judge.controller.ts`, `server/test/app.test.ts`, `server/test/integration.test.ts`, `client/src/App.tsx`, `client/src/components/layout/ProtectedRoute.tsx`, `client/src/components/layout/Navbar.tsx`, `client/src/pages/auth/LoginPage.tsx`, `client/src/pages/auth/JudgeLoginPage.tsx`, `client/src/pages/judge/JudgePortalPage.tsx`, `client/src/services/api.ts`, `client/src/types/api.ts`, `client/src/index.css`, `README.md`, `docs/API_REFERENCE.md`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts` (server), `npm run typecheck` (server), `npx tsc -p tsconfig.test.json` (server), `npm run build` (server), `npm run build` (client).
+- **Verification results:**
+  - Non-database server suite: **35 tests passed, 0 failed**.
+  - Server typecheck, test typecheck, and production build passed. Client typecheck and production build passed.
+  - Model-stubbed judge HTTP harness verified: unauthenticated judge API `401`; judge panel access `200`; administrator and participant judge API access `403`; assigned judge participant access `200`; unassigned judge access `403`; judge evaluations access `200`; readable panel/competition/participant labels returned.
+  - Integration coverage now asserts administrators are rejected from judge-only endpoints. The full integration suite was **not executed locally** because no MongoDB instance was reachable at `127.0.0.1:27017`; it must not be run against Atlas.
+- **Remaining defects:** None identified in the dedicated judge login/dashboard scope during this phase.
+- **Completion date:** 2026-10-22
+
 ---
 
 ## D. In-Progress Tasks
@@ -532,8 +552,9 @@ _None. All tracked project milestones are complete._
 | P-12 | CI tooling & GitHub Actions workflow | parallel | **Completed (T-21)** |
 | DEF-01 | MongoDB Atlas verification, Add Judge & Add Participant defect resolutions | T-19, T-20 | **Completed (T-22)** |
 | DEF-02 | Participant Portal route, results, and error-state defect resolution | T-19, T-22 | **Completed** |
+| T-24 | Dedicated Judge Login page and judge-only dashboard | T-19, T-22 | **Completed** |
 
-Tracked tasks: 23 completed (T-01…T-22) + 0 pending = 23 → **100% complete**.
+Tracked tasks: 24 completed (T-01…T-22) + 0 pending = 24 → **100% complete**.
 
 ---
 

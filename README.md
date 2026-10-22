@@ -38,6 +38,7 @@ Every feature listed below is fully implemented, strictly typed, and covered by 
 - **Three Distinct Roles:** `admin`, `judge`, and `participant`.
 - **Active State Verification:** Account deactivation checks execute on every authenticated request and login attempt; deactivated users are immediately blocked with HTTP 403 Forbidden.
 - **Admin-Controlled Provisioning:** Public judge registration is disabled to prevent unvetted evaluators; judges are securely provisioned by administrators via `POST /api/v1/auth/users`.
+- **Dedicated Judge Access:** Judges use `/judge/login` and a judge-only `/judge` dashboard; administrator and participant accounts are rejected from judge-only pages and APIs.
 
 ### Competition & Round Lifecycle Management
 - **Competition Aggregates:** Creation, description, status lifecycle (`draft` &rarr; `active` &rarr; `completed` &rarr; `archived`), and scoring policies.
@@ -126,7 +127,7 @@ student-ranking-system/
 │   │   ├── context/             # React Context (AuthContext.tsx)
 │   │   ├── pages/
 │   │   │   ├── admin/           # AdminDashboardPage.tsx (CRUD & progress reporting)
-│   │   │   ├── auth/            # LoginPage.tsx
+│   │   │   ├── auth/            # LoginPage.tsx, JudgeLoginPage.tsx, RegisterPage.tsx
 │   │   │   ├── judge/           # JudgePortalPage.tsx (Criteria sliders & draft/submit)
 │   │   │   └── leaderboard/     # LeaderboardPage.tsx (Live standings, podium, print)
 │   │   ├── services/            # Typed HTTP client (api.ts)
@@ -380,7 +381,7 @@ Follow this standard chronological workflow during an event:
 5. **Register Participants:** In the **Participants** tab, register participants with unique IDs (e.g., `KAR-01`, `KAR-02`) and assign each team to a panel.
 6. **Activate Round 1:** In the **Competitions** tab, click **Activate Round 1**.
 7. **Judge Evaluation:**
-   - Judges log in at `/login` and are automatically directed to `/judge`.
+   - Judges log in at `/judge/login` and are automatically directed to the judge-only `/judge` dashboard.
    - Judges select their assigned panel, select a participant from the roster, and enter marks using the criteria sliders.
    - Click **Save Draft** to store work-in-progress, or **Finalize & Submit Evaluation** to lock the marks permanently.
 8. **Inspect Progress & Close Round 1:**
