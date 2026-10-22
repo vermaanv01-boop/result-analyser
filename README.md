@@ -47,8 +47,9 @@ Every feature listed below is fully implemented, strictly typed, and covered by 
 
 ### Panel & Participant Management
 - **Competition-Scoped Panels:** Grouping of verified judges into distinct evaluation panels (e.g., Track-specific panels).
+- **Readable Judge Assignment:** Administrators search and select active judges by name or email instead of pasting MongoDB ObjectIds; selected judges appear as removable chips, and existing panels can be edited.
 - **Participant Registration:** Unique `registrationId` enforced per competition (e.g., `KAR-2026-001`), supporting ID reuse across distinct competitions.
-- **Panel Assignment & Transfers:** Dynamically assign or transfer participants between judging panels.
+- **Panel Assignment & Transfers:** Dynamically assign or transfer participants between judging panels using readable panel selectors; inactive panels cannot receive new assignments.
 - **Round Eligibility Tracking:** Granular per-round eligibility records (`eligible: boolean`, `ineligibleReason: string`).
 - **Round 2 Qualification Workflows:** Automated qualification of Round 1 cohorts via **Top-$N$ ranking**, **minimum cutoff score**, or **explicit ID selection**.
 
@@ -377,8 +378,9 @@ Follow this standard chronological workflow during an event:
 3. **Configure Criteria Parameters:** In the **Parameters** tab, add evaluation criteria (e.g., *Technical Architecture*, *Innovation*, *Presentation*). Specify `maxMarks`, `weightage`, and applicable rounds (`Round 1`, `Round 2`, or both).
 4. **Provision Judges & Panels:**
    - In the **Panels** tab, click **+ Add Judge Account** to provision evaluators (e.g., `judge1@evaluator.org`).
-   - Create judging panels (e.g., *Panel A - AI Track*, *Panel B - FinTech*) and assign the provisioned judges.
-5. **Register Participants:** In the **Participants** tab, register participants with unique IDs (e.g., `KAR-01`, `KAR-02`) and assign each team to a panel.
+   - Create judging panels (e.g., *Panel A - AI Track*, *Panel B - FinTech*). Search the judge directory by name or email and select judges from the readable multi-select; no ObjectId entry is required.
+   - Use **Edit Panel** to rename a panel, change its description, or reassign judges later. Inactive judges cannot be newly assigned.
+5. **Register Participants:** In the **Participants** tab, register participants with unique IDs (e.g., `KAR-01`, `KAR-02`) and select an active panel from the readable dropdown. Panel assignments can be changed later from the participant row or edit form.
 6. **Activate Round 1:** In the **Competitions** tab, click **Activate Round 1**.
 7. **Judge Evaluation:**
    - Judges log in at `/judge/login` and are automatically directed to the judge-only `/judge` dashboard.

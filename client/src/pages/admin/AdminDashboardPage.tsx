@@ -63,6 +63,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [newPanelName, setNewPanelName] = useState("");
   const [newPanelDesc, setNewPanelDesc] = useState("");
   const [newPanelJudges, setNewPanelJudges] = useState<string[]>([]);
+  const [newPanelIsActive, setNewPanelIsActive] = useState<boolean>(true);
 
   const [newJudgeName, setNewJudgeName] = useState("");
   const [newJudgeEmail, setNewJudgeEmail] = useState("");
@@ -118,6 +119,7 @@ export const AdminDashboardPage: React.FC = () => {
     setNewPanelName("");
     setNewPanelDesc("");
     setNewPanelJudges([]);
+    setNewPanelIsActive(true);
     setPanelModalError(null);
     setShowCreatePanel(true);
     void loadJudges();
@@ -128,6 +130,7 @@ export const AdminDashboardPage: React.FC = () => {
     setNewPanelName(panel.name);
     setNewPanelDesc(panel.description ?? "");
     setNewPanelJudges(panel.judges.map((judge) => judge._id));
+    setNewPanelIsActive(panel.isActive);
     setPanelModalError(null);
     setShowCreatePanel(true);
     void loadJudges();
@@ -275,6 +278,7 @@ export const AdminDashboardPage: React.FC = () => {
         name: trimmedName,
         description: trimmedDescription || undefined,
         judges: newPanelJudges,
+        isActive: newPanelIsActive,
       };
 
       if (editingPanel) {
@@ -288,6 +292,7 @@ export const AdminDashboardPage: React.FC = () => {
       setNewPanelName("");
       setNewPanelDesc("");
       setNewPanelJudges([]);
+      setNewPanelIsActive(true);
       setShowCreatePanel(false);
       setEditingPanel(null);
       await loadCompetitionData(selectedCompetitionId);
@@ -1369,6 +1374,38 @@ export const AdminDashboardPage: React.FC = () => {
                 disabled={submittingPanel}
               />
 
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "8px",
+                  marginTop: "14px",
+                  fontSize: "13px",
+                  cursor: submittingPanel ? "default" : "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={newPanelIsActive}
+                  onChange={(e) => setNewPanelIsActive(e.target.checked)}
+                  disabled={submittingPanel}
+                  style={{ width: "auto", marginTop: "2px" }}
+                />
+                <span>
+                  Panel is active
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "11px",
+                      color: "var(--color-slate)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    Inactive panels remain visible but cannot receive new participant assignments.
+                  </span>
+                </span>
+              </label>
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button
                   type="button"
@@ -1464,22 +1501,29 @@ export const AdminDashboardPage: React.FC = () => {
                 <select
                   value={newPartPanel}
                   onChange={(e) => setNewPartPanel(e.target.value)}
-                  disabled={submittingParticipant || panels.length === 0}
+                  disabled={submittingParticipant || loading || panels.length === 0}
                 >
                   <option value="">
-                    {panels.length === 0 ? "No panels available yet" : "-- No Panel (Unassigned) --"}
+                    {loading
+                      ? "Loading available panels..."
+                      : panels.length === 0
+                        ? "No panels available yet"
+                        : "-- No Panel (Unassigned) --"}
                   </option>
-                  {panels.map((p) => (
-                    <option key={p._id} value={p._id} disabled={!p.isActive}>
-                      {p.name}
-                      {p.isActive ? "" : " (Inactive)"}
-                    </option>
-                  ))}
+                  {!loading &&
+                    panels.map((p) => (
+                      <option key={p._id} value={p._id} disabled={!p.isActive}>
+                        {p.name}
+                        {p.isActive ? "" : " (Inactive)"}
+                      </option>
+                    ))}
                 </select>
                 <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
-                  {panels.length === 0
-                    ? "Create an evaluation panel first, then assign this participant to it."
-                    : "Only active panels can receive new participant assignments."}
+                  {loading
+                    ? "Loading evaluation panels for this competition."
+                    : panels.length === 0
+                      ? "Create an evaluation panel first, then assign this participant to it."
+                      : "Only active panels can receive new participant assignments."}
                 </div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>

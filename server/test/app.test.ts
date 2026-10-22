@@ -146,6 +146,45 @@ describe("judge portal routing", (): void => {
   });
 });
 
+describe("admin management routing", (): void => {
+  const competitionId = "507f1f77bcf86cd799439011";
+  const panelId = "507f1f77bcf86cd799439012";
+
+  test("requires authentication to list judge selector options", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/auth/judges`);
+    const json = (await response.json()) as Record<string, unknown>;
+
+    assert.equal(response.status, 401);
+    const error = json["error"] as Record<string, unknown>;
+    assert.equal(error["code"], ERROR_CODES.UNAUTHORIZED);
+  });
+
+  test("requires authentication to create or update panel assignments", async (): Promise<void> => {
+    const createResponse = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Unauthorized Panel",
+          judges: ["507f1f77bcf86cd799439013"],
+        }),
+      },
+    );
+    assert.equal(createResponse.status, 401);
+
+    const updateResponse = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels/${panelId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ judges: ["507f1f77bcf86cd799439013"] }),
+      },
+    );
+    assert.equal(updateResponse.status, 401);
+  });
+});
+
 describe("participant portal routing", (): void => {
   test("mounts the documented /portal path behind authentication", async (): Promise<void> => {
     const response = await fetch(`${baseUrl}/api/v1/portal/profile`);

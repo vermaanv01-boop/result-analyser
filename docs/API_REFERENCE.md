@@ -84,6 +84,12 @@ Admin-only endpoint to provision users (judges or admins). Public self-registrat
   ```
 - **Response (201)**: `{ "user": { "id": "...", "name": "...", "role": "judge" } }`
 
+### `GET /auth/judges`
+List all judge accounts for administrator panel-assignment selectors.
+- **Authorization**: `admin`
+- **Response (200)**: `{ "judges": [{ "id": "...", "name": "Dr. Sarah Miller", "email": "smiller@evaluator.org", "role": "judge", "isActive": true }] }`
+- **Notes**: Includes inactive judges so administrators can recognize and remove stale assignments; the UI disables inactive accounts for new selection.
+
 ---
 
 ## 2. Competitions (`/competitions`)
@@ -162,11 +168,13 @@ Create a panel and assign verified judge user accounts.
     "judges": ["671752b023...", "671752b024..."]
   }
   ```
+- **Constraints**: Requires at least one judge. Judge IDs must be valid, unique within the payload, belong to existing accounts with the `judge` role, and reference active accounts. The administrator UI provides a searchable judge selector, so these IDs do not need to be entered manually.
 - **Response (201)**: `{ "panel": { "_id": "...", "judges": [ ... ] } }`
 
 ### `PATCH /competitions/:competitionId/panels/:panelId`
 Modify panel name, description, assigned judges list, or active status.
 - **Authorization**: `admin`
+- **Constraints**: When `judges` is supplied, the same valid, unique, existing, active-judge rules apply.
 
 ---
 
@@ -180,7 +188,7 @@ List participants with optional filtering by `panel`, `isActive`, or round eligi
 ### `POST /competitions/:competitionId/participants`
 Register a participant team or individual.
 - **Authorization**: `admin`
-- **Constraints**: Enforces competition-scoped unique `registrationId`.
+- **Constraints**: Enforces competition-scoped unique `registrationId`. If `panel` is supplied, it must belong to the same competition and be active.
 - **Request Body**:
   ```json
   {
@@ -195,6 +203,7 @@ Register a participant team or individual.
 ### `PATCH /competitions/:competitionId/participants/:participantId`
 Update participant name, registration ID, email, panel assignment, or active status.
 - **Authorization**: `admin`
+- **Constraints**: A supplied `panel` must belong to the same competition and be active. Existing assignments to a now-inactive panel are preserved until reassigned.
 
 ### `PATCH /competitions/:competitionId/participants/:participantId/eligibility`
 Explicitly set eligibility for a particular round with an optional reason.

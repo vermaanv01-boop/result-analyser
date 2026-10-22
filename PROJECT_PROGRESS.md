@@ -15,7 +15,7 @@ Last updated: 2026-10-22
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 24 of 24 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24 delivered and verified)
+- **Overall completion status:** 25 of 25 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24, T-25 delivered and verified)
 
 ---
 
@@ -535,6 +535,24 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Remaining defects:** None identified in the dedicated judge login/dashboard scope during this phase.
 - **Completion date:** 2026-10-22
 
+### T-25 - Readable Judge and Panel Assignment Management (verified)
+
+- **Implementation summary:**
+  - Replaced the panel modal's comma-separated judge ObjectId input with a searchable multi-select sourced from the administrator judge directory. Selected judges appear as removable name/email chips; inactive accounts are visible but disabled for new assignment, and loading, empty, error, and retry states are handled.
+  - Added panel editing through the existing update API, including name, description, active-state toggle, and judge reassignment. Removed the raw `Judge ID` directory column from the panel-management view.
+  - Added inline participant panel reassignment with readable panel names. Inactive panels remain visible for historical assignments but cannot be selected for new assignments; the registration modal also handles panel loading, empty, and inactive states.
+  - Added server-side assignment integrity checks: judge IDs must be well-formed, unique case-insensitively, associated with existing active accounts, and belong to accounts with the `judge` role. Participant creation/update rejects inactive panels. Existing admin-only route authorization was not weakened.
+  - No team/participant ObjectId entry field existed in the current UI or schema, so no team selector or team model change was introduced. No new API routes or database models were added.
+- **Files changed:** `client/src/pages/admin/AdminDashboardPage.tsx`, `client/src/components/forms/JudgeAssignmentSelect.tsx`, `client/src/index.css`, `server/src/services/panel.service.ts`, `server/src/validators/panel.validators.ts`, `server/src/services/participant.service.ts`, `server/test/panel-assignment.test.ts`, `server/test/integration.test.ts`, `server/test/app.test.ts`, `README.md`, `docs/API_REFERENCE.md`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run typecheck` (server), `npx tsc -p tsconfig.test.json` (server), `npx tsx --test test/app.test.ts test/panel-assignment.test.ts test/scoring.test.ts test/validate.test.ts` (server), `npm run build` (server), `npm run build` (client).
+- **Verification results:**
+  - Non-database server suite: **49 tests passed, 0 failed**.
+  - Server typecheck, test typecheck, and production build passed. Client typecheck and production build passed.
+  - Unauthenticated access to the judge selector and panel create/update routes is covered and returns `401`.
+  - Integration coverage now asserts selectable judge listing, panel judge reassignment and active-state toggling, duplicate/nonexistent/non-judge/inactive rejection, admin-only panel updates, participant panel transfers, and inactive-panel rejection. The full integration suite was **not executed locally** because no MongoDB instance was reachable at `127.0.0.1:27017`; it must not be run against Atlas.
+- **Remaining defects:** None identified in the readable judge/panel assignment scope within the verified environment. Database-backed integration behavior remains unverified locally.
+- **Completion date:** 2026-10-22
+
 ---
 
 ## D. In-Progress Tasks
@@ -553,8 +571,9 @@ _None. All tracked project milestones are complete._
 | DEF-01 | MongoDB Atlas verification, Add Judge & Add Participant defect resolutions | T-19, T-20 | **Completed (T-22)** |
 | DEF-02 | Participant Portal route, results, and error-state defect resolution | T-19, T-22 | **Completed** |
 | T-24 | Dedicated Judge Login page and judge-only dashboard | T-19, T-22 | **Completed** |
+| T-25 | Readable judge/panel selectors, panel editing, and assignment integrity | T-19, T-22 | **Completed** |
 
-Tracked tasks: 24 completed (T-01…T-22) + 0 pending = 24 → **100% complete**.
+Tracked tasks: 25 completed (T-01…T-22) + 0 pending = 25 → **100% complete**.
 
 ---
 

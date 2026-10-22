@@ -421,6 +421,36 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     );
     assert.equal(restoreRes.status, 200);
 
+    const deactivateRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels/${panel2Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ isActive: false }),
+      },
+    );
+    assert.equal(deactivateRes.status, 200);
+    const deactivateData = (await deactivateRes.json()) as any;
+    assert.equal(deactivateData.panel.isActive, false);
+
+    const reactivateRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels/${panel2Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ isActive: true }),
+      },
+    );
+    assert.equal(reactivateRes.status, 200);
+    const reactivateData = (await reactivateRes.json()) as any;
+    assert.equal(reactivateData.panel.isActive, true);
+
     const duplicateRes = await fetch(
       `${baseUrl}/api/v1/competitions/${competitionId}/panels`,
       {
@@ -543,6 +573,53 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     assert.equal(p2Res.status, 201);
     const p2Data = (await p2Res.json()) as any;
     participant2Id = p2Data.participant._id;
+  });
+
+  test("reassigns participant panels and rejects inactive panel assignments", async () => {
+    const reassignRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/participants/${participant2Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ panel: panel2Id }),
+      },
+    );
+    assert.equal(reassignRes.status, 200);
+    const reassignData = (await reassignRes.json()) as any;
+    assert.equal(String(reassignData.participant.panel), panel2Id);
+
+    const restoreRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/participants/${participant2Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ panel: panel1Id }),
+      },
+    );
+    assert.equal(restoreRes.status, 200);
+
+    await Panel.findByIdAndUpdate(panel2Id, { isActive: false });
+
+    const inactiveRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/participants/${participant1Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ panel: panel2Id }),
+      },
+    );
+    assert.equal(inactiveRes.status, 400);
+
+    await Panel.findByIdAndUpdate(panel2Id, { isActive: true });
   });
 
   test("activates Round 1 and verifies judge panel portal", async () => {
