@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  activateJudgeHandler,
   listJudgesHandler,
   loginHandler,
   meHandler,
@@ -9,6 +10,7 @@ import {
 import { authenticate, requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import {
+  activateJudgeSchema,
   createUserSchema,
   loginSchema,
   registerParticipantSchema,
@@ -23,6 +25,8 @@ router.post(
   validate({ body: registerParticipantSchema }),
   registerParticipantHandler,
 );
+
+router.post("/judge/activate", validate({ body: activateJudgeSchema }), activateJudgeHandler);
 
 router.get("/me", authenticate, meHandler);
 

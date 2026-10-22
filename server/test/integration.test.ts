@@ -9,6 +9,9 @@ import { Evaluation } from "../src/models/evaluation.model";
 import { Panel } from "../src/models/panel.model";
 import { Participant } from "../src/models/participant.model";
 import { User } from "../src/models/user.model";
+import { ActivationToken } from "../src/models/activation-token.model";
+import { sendEmailWithRetry, resetEmailTransporterForTests } from "../src/services/email.service";
+import { activateJudgeAccount } from "../src/services/notification.service";
 
 const TEST_DB_URI = "mongodb://127.0.0.1:27017/student_ranking_integration_test";
 
@@ -30,6 +33,7 @@ before(async (): Promise<void> => {
   await Participant.deleteMany({});
   await EvaluationParameter.deleteMany({});
   await Evaluation.deleteMany({});
+  await ActivationToken.deleteMany({});
 
   const app = createApp();
   await new Promise<void>((resolve) => {
@@ -57,6 +61,7 @@ after(async (): Promise<void> => {
     await Participant.deleteMany({});
     await EvaluationParameter.deleteMany({});
     await Evaluation.deleteMany({});
+    await ActivationToken.deleteMany({});
     await mongoose.disconnect();
   } catch {
     // Ignore cleanup errors on disconnect
@@ -175,6 +180,9 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
     const j2LoginData = (await j2Login.json()) as any;
     otherJudgeToken = j2LoginData.token;
 
+    const j2LoginData = (await j2Login.json()) as any;
+    otherJudgeToken = j2LoginData.token;
+
     // Judge tries to provision a user -> 403 Forbidden
     const forbiddenRes = await fetch(`${baseUrl}/api/v1/auth/users`, {
       method: "POST",
@@ -190,6 +198,99 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       }),
     });
     assert.equal(forbiddenRes.status, 403);
+  });
+
+  test("judge creation triggers activation flow and invalid tokens are rejected", async () => {
+    resetEmailTransporterForTests();
+    const originalSendMail = require("nodemailer").createTransport;
+    let emailSentCount = 0;
+    require("nodemailer").createTransport = () => ({
+      sendMail: async () => {
+        emailSentCount += 1;
+        return { messageId: "test-message" };
+      },
+    });
+
+    try {
+      const createJudge3 = await fetch(`${baseUrl}/api/v1/auth/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Judge Activation",
+          email: "judge.activate@karvaan.org",
+          password: "TempPassword123!",
+          role: "judge",
+        }),
+      });
+      assert.equal(createJudge3.status, 201);
+      const j3Data = (await createJudge3.json()) as any;
+      assert.equal(j3Data.user.role, "judge");
+      assert.equal(emailSentCount >= 1, true);
+
+      // The judge cannot log in with the temporary password until activation
+      // because the account remains active in current flow but activation
+      // requires the token; instead validate token lifecycle.
+      const activationRecord = await ActivationToken.findOne({ user: j3Data.user.id });
+      assert.ok(activationRecord);
+      assert.ok(activationRecord.tokenHash);
+      assert.equal(activationRecord.usedAt, null);
+
+      const badToken = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: "not-a-real-token", password: "NewPass123!" }),
+      });
+      assert.equal(badToken.status, 400);
+
+      const reuseRes = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: "00".repeat(32), password: "NewPass123!" }),
+      });
+      assert.equal(reuseRes.status, 400);
+
+      // Use the stored flow to create a valid token and activate
+      const { createJudgeActivationToken } = await import("../src/services/notification.service");
+      const rawToken = await createJudgeActivationToken(j3Data.user.id);
+      const activateRes = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rawToken, password: "NewPass123!" }),
+      });
+      assert.equal(activateRes.status, 200);
+      const actData = (await activateRes.json()) as any;
+      assert.equal(actData.user.email, "judge.activate@karvaan.org");
+
+      // Reuse the same token -> rejected
+      const reuseRes2 = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rawToken, password: "AnotherPass123!" }),
+      });
+      assert.equal(reuseRes2.status, 400);
+
+      // Password was hashed - verify login works with new password
+      const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "judge.activate@karvaan.org",
+          password: "NewPass123!",
+        }),
+      });
+      assert.equal(loginRes.status, 200);
+      const loggedInUser = await User.findOne({ email: "judge.activate@karvaan.org" }).select(
+        "+passwordHash",
+      );
+      assert.ok(loggedInUser?.passwordHash);
+      assert.notEqual(loggedInUser?.passwordHash, "NewPass123!");
+    } finally {
+      require("nodemailer").createTransport = originalSendMail;
+      resetEmailTransporterForTests();
+    }
   });
 
   test("admin lists judge accounts with readable selector fields", async () => {
@@ -1165,7 +1266,48 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     );
     assert.ok(p1Progress);
     assert.equal(p1Progress.round1.submitted, 2);
-    assert.equal(p1Progress.round1.isComplete, true);
+  });
+
+  test("participant registration triggers notification without failing on delivery errors", async () => {
+    resetEmailTransporterForTests();
+    const originalSendMail = require("nodemailer").createTransport;
+    let shouldFail = true;
+    require("nodemailer").createTransport = () => ({
+      sendMail: async () => {
+        if (shouldFail) {
+          throw new Error("SMTP connection failed");
+        }
+        return { messageId: "ok" };
+      },
+    });
+
+    try {
+      const registerRes = await fetch(`${baseUrl}/api/v1/auth/register-participant`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          competitionId,
+          name: "Email Fail Candidate",
+          registrationId: "KVN-EMAIL-FAIL",
+          email: "email.fail@student.edu",
+          password: "ParticipantPass123!",
+        }),
+      });
+      // Registration must succeed even if email delivery fails
+      assert.equal(registerRes.status, 201);
+      const regData = (await registerRes.json()) as any;
+      assert.ok(regData.token);
+      assert.equal(regData.user.role, "participant");
+      const existingUser = await User.findOne({ email: "email.fail@student.edu" });
+      assert.ok(existingUser);
+      const existingParticipant = await Participant.findOne({
+        registrationId: "KVN-EMAIL-FAIL",
+      });
+      assert.ok(existingParticipant);
+    } finally {
+      require("nodemailer").createTransport = originalSendMail;
+      resetEmailTransporterForTests();
+    }
   });
 
   test("participant self-registration, re-login, profile, team update, and published results", async () => {

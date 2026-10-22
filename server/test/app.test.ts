@@ -249,3 +249,14 @@ describe("participant portal routing", (): void => {
     assert.equal(error["code"], ERROR_CODES.UNAUTHORIZED);
   });
 });
+
+describe("auth email and activation routing", (): void => {
+  test("requires a token and password to activate a judge account", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "", password: "short" }),
+    });
+    assert.equal(response.status, 400);
+  });
+});

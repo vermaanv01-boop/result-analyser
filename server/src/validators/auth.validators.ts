@@ -15,11 +15,7 @@ export const createUserSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export const registerParticipantSchema = z.object({
-  competitionId: objectIdSchema,
-  name: nonEmptyString(200, "Participant or team name is required"),
-  registrationId: nonEmptyString(64, "Registration ID is required"),
-  email: emailSchema,
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  teamMembers: z.array(z.string().trim().min(1).max(200)).optional(),
+export const activateJudgeSchema = z.object({
+  token: z.string().min(1, "activation token is required"),
+  password: z.string().min(6, "password must be at least 6 characters"),
 });

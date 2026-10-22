@@ -6,6 +6,7 @@ import { Participant, type ParticipantDocument } from "../models/participant.mod
 import { User, type UserRole } from "../models/user.model";
 import type { AuthenticatedUser, AuthTokenPayload } from "../types/auth.types";
 import { ApiError } from "../utils/api-error";
+import { sendJudgeActivationEmail, sendParticipantRegistrationConfirmation } from "./notification.service";
 
 const SALT_ROUNDS = 10;
 
@@ -110,6 +111,19 @@ export async function provisionUser(data: CreateUserData): Promise<Authenticated
     role: data.role,
     isActive: data.isActive ?? true,
   });
+
+  if (user.role === "judge") {
+    // Send activation/setup email; delivery failures must not fail account creation.
+    try {
+      await sendJudgeActivationEmail({
+        userId: user._id.toString(),
+        email: user.email,
+        name: user.name,
+      });
+    } catch (error) {
+      console.error("Failed to send judge activation email:", error instanceof Error ? error.message : "unknown");
+    }
+  }
 
   return {
     id: user._id.toString(),
@@ -230,6 +244,22 @@ export async function registerParticipant(
   };
 
   const token = signToken(payload);
+
+  // Send registration confirmation email; delivery failures must not undo
+  // a successfully persisted registration.
+  try {
+    await sendParticipantRegistrationConfirmation({
+      email: normalizedEmail,
+      participantName: data.name.trim(),
+      competitionId: competition._id.toString(),
+      registrationId: normalizedRegId,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to send participant registration confirmation email:",
+      error instanceof Error ? error.message : "unknown",
+    );
+  }
 
   return {
     token,
