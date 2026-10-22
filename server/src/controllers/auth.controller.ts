@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from "express";
 import type { ValidatedRequest } from "../middleware/validate";
-import { login, provisionUser } from "../services/auth.service";
+import { getJudges, login, provisionUser } from "../services/auth.service";
 import type {
   createUserSchema,
   loginSchema,
@@ -26,6 +26,19 @@ export function meHandler(
 ): void {
   try {
     res.status(200).json({ user: req.user });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listJudgesHandler(
+  _req: ValidatedRequest<{}>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const judges = await getJudges();
+    res.status(200).json({ judges });
   } catch (error) {
     next(error);
   }

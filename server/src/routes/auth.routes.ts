@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  listJudgesHandler,
   loginHandler,
   meHandler,
   provisionUserHandler,
@@ -16,6 +17,8 @@ const router = Router();
 router.post("/login", validate({ body: loginSchema }), loginHandler);
 
 router.get("/me", authenticate, meHandler);
+
+router.get("/judges", authenticate, requireRole("admin"), listJudgesHandler);
 
 router.post(
   "/users",

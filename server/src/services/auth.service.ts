@@ -117,3 +117,14 @@ export async function provisionUser(data: CreateUserData): Promise<Authenticated
     isActive: user.isActive,
   };
 }
+
+export async function getJudges(): Promise<AuthenticatedUser[]> {
+  const judges = await User.find({ role: "judge" }).sort({ name: 1 });
+  return judges.map((j) => ({
+    id: j._id.toString(),
+    name: j.name,
+    email: j.email,
+    role: j.role,
+    isActive: j.isActive,
+  }));
+}
