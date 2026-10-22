@@ -306,7 +306,7 @@ export async function getParticipantResults(
 export async function updateParticipantTeam(
   userId: string,
   userEmail: string,
-  data: { name?: string; teamMembers?: string[] },
+  data: { name?: string | undefined; teamMembers?: string[] | undefined },
 ): Promise<ParticipantProfileDTO> {
   const participant = await findParticipantForUser(userId, userEmail);
 
