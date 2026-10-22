@@ -793,9 +793,6 @@ export const AdminDashboardPage: React.FC = () => {
                           <tr key={jId}>
                             <td style={{ fontWeight: 600 }}>{j.name}</td>
                             <td>{j.email}</td>
-                            <td style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--color-slate)" }}>
-                              {jId}
-                            </td>
                             <td>
                               {assignedPanels.length > 0 ? (
                                 assignedPanels.map((p) => (
@@ -830,7 +827,7 @@ export const AdminDashboardPage: React.FC = () => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
+                        <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
                           No judges provisioned yet. Click "+ Add Judge" to provision a judge account.
                         </td>
                       </tr>
@@ -891,10 +888,10 @@ export const AdminDashboardPage: React.FC = () => {
                     participants.map((part) => {
                       const r1 = part.eligibility.find((e) => e.round === 1);
                       const r2 = part.eligibility.find((e) => e.round === 2);
-                      const panelName =
+                      const currentPanelId =
                         typeof part.panel === "object" && part.panel
-                          ? part.panel.name
-                          : "Unassigned";
+                          ? part.panel._id
+                          : part.panel ?? "";
 
                       return (
                         <tr key={part._id}>
@@ -902,7 +899,33 @@ export const AdminDashboardPage: React.FC = () => {
                             {part.registrationId}
                           </td>
                           <td style={{ fontWeight: 600 }}>{part.name}</td>
-                          <td>{panelName}</td>
+                          <td>
+                            <select
+                              value={currentPanelId}
+                              onChange={(event) =>
+                                handleAssignParticipantPanel(
+                                  part._id,
+                                  part.name,
+                                  event.target.value,
+                                )
+                              }
+                              disabled={updatingParticipantId === part._id}
+                              aria-label={`Panel for ${part.name}`}
+                              style={{ minWidth: "170px" }}
+                            >
+                              <option value="">Unassigned</option>
+                              {panels.map((panel) => (
+                                <option
+                                  key={panel._id}
+                                  value={panel._id}
+                                  disabled={!panel.isActive && panel._id !== currentPanelId}
+                                >
+                                  {panel.name}
+                                  {panel.isActive ? "" : " (Inactive)"}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                           <td>
                             <button
                               onClick={() =>
@@ -1284,12 +1307,32 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: CREATE PANEL */}
+      {/* MODAL: CREATE OR EDIT PANEL */}
       {showCreatePanel && (
         <div className="modal-backdrop">
           <div className="modal-content">
-            <h3 style={{ marginBottom: "16px" }}>Create Evaluation Panel</h3>
-            <form onSubmit={handleCreatePanel}>
+            <h3 style={{ marginBottom: "16px" }}>
+              {editingPanel ? "Edit Evaluation Panel" : "Create Evaluation Panel"}
+            </h3>
+
+            {panelModalError && (
+              <div
+                role="alert"
+                style={{
+                  padding: "10px 14px",
+                  background: "var(--color-danger-bg)",
+                  color: "var(--color-danger)",
+                  border: "1px solid rgba(142, 46, 46, 0.2)",
+                  borderRadius: "4px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                }}
+              >
+                {panelModalError}
+              </div>
+            )}
+
+            <form onSubmit={handleSavePanel}>
               <div style={{ marginBottom: "12px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
                   Panel Name
@@ -1300,9 +1343,10 @@ export const AdminDashboardPage: React.FC = () => {
                   onChange={(e) => setNewPanelName(e.target.value)}
                   placeholder="e.g. Artificial Intelligence Panel"
                   required
+                  disabled={submittingPanel}
                 />
               </div>
-              <div style={{ marginBottom: "12px" }}>
+              <div style={{ marginBottom: "16px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
                   Description
                 </label>
@@ -1311,92 +1355,35 @@ export const AdminDashboardPage: React.FC = () => {
                   value={newPanelDesc}
                   onChange={(e) => setNewPanelDesc(e.target.value)}
                   placeholder="Focus areas..."
+                  disabled={submittingPanel}
                 />
               </div>
 
-              {/* Interactive Judge Selection */}
-              {judges.length > 0 && (
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>
-                    Select Judges from Directory:
-                  </label>
-                  <div
-                    style={{
-                      maxHeight: "130px",
-                      overflowY: "auto",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "4px",
-                      padding: "8px 12px",
-                      background: "var(--color-ivory-surface)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                    }}
-                  >
-                    {judges.map((j) => {
-                      const jId = j.id || (j as any)._id;
-                      const isSelected = newPanelJudges.includes(jId);
-                      return (
-                        <label
-                          key={jId}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            fontSize: "13px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            style={{ width: "auto" }}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNewPanelJudges([...newPanelJudges, jId]);
-                              } else {
-                                setNewPanelJudges(newPanelJudges.filter((id) => id !== jId));
-                              }
-                            }}
-                          />
-                          <span>
-                            <strong>{j.name}</strong> ({j.email})
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <JudgeAssignmentSelect
+                judges={judges}
+                selectedIds={newPanelJudges}
+                onChange={setNewPanelJudges}
+                loading={judgesLoading}
+                error={judgesError}
+                onRetry={() => void loadJudges()}
+                disabled={submittingPanel}
+              />
 
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
-                  Assigned Judge IDs (comma-separated ObjectIds)
-                </label>
-                <input
-                  type="text"
-                  value={newPanelJudges.join(", ")}
-                  onChange={(e) =>
-                    setNewPanelJudges(
-                      e.target.value
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    )
-                  }
-                  placeholder="e.g. 6ad90b62ebbc07ae63a150a8"
-                  required
-                />
-                <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
-                  Select judges from the directory above or paste 24-character ObjectIds.
-                </div>
-              </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCreatePanel(false)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={closePanelModal}
+                  disabled={submittingPanel}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-gold">
-                  Create Panel
+                <button type="submit" className="btn btn-gold" disabled={submittingPanel}>
+                  {submittingPanel
+                    ? "Saving..."
+                    : editingPanel
+                      ? "Save Panel Changes"
+                      : "Create Panel"}
                 </button>
               </div>
             </form>
@@ -1477,15 +1464,23 @@ export const AdminDashboardPage: React.FC = () => {
                 <select
                   value={newPartPanel}
                   onChange={(e) => setNewPartPanel(e.target.value)}
-                  disabled={submittingParticipant}
+                  disabled={submittingParticipant || panels.length === 0}
                 >
-                  <option value="">-- No Panel (Unassigned) --</option>
+                  <option value="">
+                    {panels.length === 0 ? "No panels available yet" : "-- No Panel (Unassigned) --"}
+                  </option>
                   {panels.map((p) => (
-                    <option key={p._id} value={p._id}>
+                    <option key={p._id} value={p._id} disabled={!p.isActive}>
                       {p.name}
+                      {p.isActive ? "" : " (Inactive)"}
                     </option>
                   ))}
                 </select>
+                <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
+                  {panels.length === 0
+                    ? "Create an evaluation panel first, then assign this participant to it."
+                    : "Only active panels can receive new participant assignments."}
+                </div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button

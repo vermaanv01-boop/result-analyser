@@ -192,6 +192,25 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
     assert.equal(forbiddenRes.status, 403);
   });
 
+  test("admin lists judge accounts with readable selector fields", async () => {
+    const response = await fetch(`${baseUrl}/api/v1/auth/judges`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(response.status, 200);
+
+    const data = (await response.json()) as any;
+    assert.equal(Array.isArray(data.judges), true);
+    assert.equal(data.judges.length, 2);
+
+    for (const judge of data.judges) {
+      assert.equal(judge.role, "judge");
+      assert.equal(typeof judge.id, "string");
+      assert.equal(typeof judge.name, "string");
+      assert.equal(typeof judge.email, "string");
+      assert.equal(typeof judge.isActive, "boolean");
+    }
+  });
+
   test("enforces account deactivation on login and authenticated requests", async () => {
     // Provision temporary user
     const createRes = await fetch(`${baseUrl}/api/v1/auth/users`, {
@@ -368,6 +387,100 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     assert.equal(panel2Res.status, 201);
     const p2Data = (await panel2Res.json()) as any;
     panel2Id = p2Data.panel._id;
+  });
+
+  test("updates panel judges and rejects invalid, duplicate, and unauthorized assignments", async () => {
+    const assignRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels/${panel2Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ judges: [judgeId] }),
+      },
+    );
+    assert.equal(assignRes.status, 200);
+    const assignData = (await assignRes.json()) as any;
+    assert.deepEqual(
+      assignData.panel.judges.map((judge: any) => String(judge)),
+      [judgeId],
+    );
+
+    const restoreRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels/${panel2Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ judges: [otherJudgeId] }),
+      },
+    );
+    assert.equal(restoreRes.status, 200);
+
+    const duplicateRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Duplicate Judge Panel",
+          judges: [judgeId, judgeId],
+        }),
+      },
+    );
+    assert.equal(duplicateRes.status, 400);
+
+    const nonJudgeRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Invalid Role Panel",
+          judges: [adminId],
+        }),
+      },
+    );
+    assert.equal(nonJudgeRes.status, 400);
+
+    const missingJudgeRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: "Missing Judge Panel",
+          judges: [new mongoose.Types.ObjectId().toString()],
+        }),
+      },
+    );
+    assert.equal(missingJudgeRes.status, 400);
+
+    const unauthorizedRes = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/panels/${panel1Id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${judgeToken}`,
+        },
+        body: JSON.stringify({ judges: [otherJudgeId] }),
+      },
+    );
+    assert.equal(unauthorizedRes.status, 403);
   });
 
   test("registers participants and rejects duplicate registrationId within competition", async () => {

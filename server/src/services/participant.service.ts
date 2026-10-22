@@ -49,6 +49,11 @@ export async function createParticipant(
     if (!panel) {
       throw ApiError.badRequest("Panel not found for this competition");
     }
+    if (!panel.isActive) {
+      throw ApiError.badRequest(
+        "Inactive panels cannot receive new participant assignments",
+      );
+    }
     panelObjectId = panel._id;
   }
 
@@ -169,6 +174,11 @@ export async function updateParticipant(
       });
       if (!panel) {
         throw ApiError.badRequest("Panel not found for this competition");
+      }
+      if (!panel.isActive) {
+        throw ApiError.badRequest(
+          "Inactive panels cannot receive new participant assignments",
+        );
       }
       participant.panel = panel._id;
     }
