@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
+import { Competition } from "../models/competition.model";
+import { Participant, type ParticipantDocument } from "../models/participant.model";
 import { User, type UserRole } from "../models/user.model";
 import type { AuthenticatedUser, AuthTokenPayload } from "../types/auth.types";
 import { ApiError } from "../utils/api-error";
@@ -128,3 +130,124 @@ export async function getJudges(): Promise<AuthenticatedUser[]> {
     isActive: j.isActive,
   }));
 }
+
+export interface RegisterParticipantData {
+  competitionId: string;
+  name: string;
+  registrationId: string;
+  email: string;
+  password: string;
+  teamMembers?: string[] | undefined;
+}
+
+export interface RegisterParticipantResult {
+  token: string;
+  user: AuthenticatedUser;
+  participant: {
+    id: string;
+    name: string;
+    registrationId: string;
+    competitionId: string;
+    competitionName: string;
+    teamMembers: string[];
+  };
+}
+
+export async function registerParticipant(
+  data: RegisterParticipantData,
+): Promise<RegisterParticipantResult> {
+  const competition = await Competition.findById(data.competitionId);
+  if (!competition) {
+    throw ApiError.notFound("Competition not found");
+  }
+  if (competition.status === "archived") {
+    throw ApiError.badRequest("Competition is archived and not accepting registrations");
+  }
+
+  const normalizedRegId = data.registrationId.trim().toUpperCase();
+  const normalizedEmail = data.email.trim().toLowerCase();
+
+  // Check if registrationId is already used in this competition by another participant
+  const existingReg = await Participant.findOne({
+    competition: competition._id,
+    registrationId: normalizedRegId,
+  });
+
+  if (existingReg && existingReg.email && existingReg.email !== normalizedEmail) {
+    throw ApiError.conflict(
+      `Participant with registration ID '${normalizedRegId}' already exists in this competition`,
+    );
+  }
+
+  // Find or create User account with role 'participant'
+  let user = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
+  if (user) {
+    if (user.role !== "participant") {
+      throw ApiError.conflict("An account with this email already exists with an administrator or judge role.");
+    }
+    const isMatch = await comparePassword(data.password, user.passwordHash);
+    if (!isMatch) {
+      throw ApiError.conflict("An account with this email already exists. Please verify your password or sign in.");
+    }
+  } else {
+    const passwordHash = await hashPassword(data.password);
+    user = await User.create({
+      name: data.name.trim(),
+      email: normalizedEmail,
+      passwordHash,
+      role: "participant",
+      isActive: true,
+    });
+  }
+
+  let participantDoc: ParticipantDocument;
+  if (existingReg) {
+    existingReg.user = user._id;
+    existingReg.name = data.name.trim();
+    if (data.teamMembers && data.teamMembers.length > 0) {
+      existingReg.teamMembers = data.teamMembers.map((m) => m.trim()).filter(Boolean);
+    }
+    await existingReg.save();
+    participantDoc = existingReg;
+  } else {
+    participantDoc = new Participant({
+      competition: competition._id,
+      user: user._id,
+      name: data.name.trim(),
+      registrationId: normalizedRegId,
+      email: normalizedEmail,
+      panel: null,
+      isActive: true,
+      teamMembers: (data.teamMembers || []).map((m) => m.trim()).filter(Boolean),
+    });
+    await participantDoc.save();
+  }
+
+  const payload: AuthTokenPayload = {
+    sub: user._id.toString(),
+    email: user.email,
+    role: user.role,
+  };
+
+  const token = signToken(payload);
+
+  return {
+    token,
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+    },
+    participant: {
+      id: participantDoc._id.toString(),
+      name: participantDoc.name,
+      registrationId: participantDoc.registrationId,
+      competitionId: competition._id.toString(),
+      competitionName: competition.name,
+      teamMembers: participantDoc.teamMembers,
+    },
+  };
+}
+

@@ -22,10 +22,12 @@ export interface ParticipantEligibility {
 
 export interface Participant {
   competition: Types.ObjectId;
+  user: Types.ObjectId | null;
   name: string;
   registrationId: string;
   email: string | null;
   panel: Types.ObjectId | null;
+  teamMembers: string[];
   isActive: boolean;
   eligibility: ParticipantEligibility[];
   createdAt: Date;
@@ -104,6 +106,11 @@ const participantDefinition = {
     ref: "Competition" satisfies ModelName,
     required: [true, "competition is required"],
   },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User" satisfies ModelName,
+    default: null,
+  },
   name: {
     type: String,
     required: [true, "name is required"],
@@ -130,6 +137,10 @@ const participantDefinition = {
     type: Schema.Types.ObjectId,
     ref: "Panel" satisfies ModelName,
     default: null,
+  },
+  teamMembers: {
+    type: [String],
+    default: () => [],
   },
   isActive: {
     type: Boolean,
@@ -167,6 +178,11 @@ participantSchema.index(
 participantSchema.index(
   { panel: 1, isActive: 1 },
   { name: "participant_panel_isActive" },
+);
+
+participantSchema.index(
+  { user: 1 },
+  { name: "participant_user", sparse: true },
 );
 
 export type ParticipantDocument = HydratedDocument<Participant>;
