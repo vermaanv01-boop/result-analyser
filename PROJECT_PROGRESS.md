@@ -15,7 +15,7 @@ Last updated: 2026-10-22
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 21 of 21 tracked tasks completed = **100%** (all milestones P-01 through P-12 delivered and verified)
+- **Overall completion status:** 22 of 22 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01 delivered and verified)
 
 ---
 
@@ -467,6 +467,34 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Files created/modified:** `.github/workflows/ci.yml`, `.env.example`.
 - **Completion date:** 2026-10-22
 
+### T-22 — MongoDB Atlas Connectivity Verification, Add Judge Defect Resolution, and Add Participant Defect Resolution
+
+- **Implementation summary:**
+  - **Atlas Connectivity Audit & Resolution:** Diagnosed MongoDB Atlas authentication failure (`bad auth: Authentication failed`) caused by URL-encoded `%3C` literal prefix in `<vermaanv01_db_user>` copied from template string and omission of the target database name in `server/.env`. Corrected `MONGODB_URI` to use clean username credentials and target the `/student_ranking` database. Confirmed Mongoose `readyState: 1`, executed administrative ping `{ ok: 1 }`, seeded initial admin (`admin@karvaan.org`), and created automated verification script `server/src/scripts/verify-workflows.ts` (`npm run verify:atlas`).
+  - **Add Judge Workflow Defect Resolution:**
+    - Root cause: Network/database errors and validation failures (e.g. password < 6 characters or 409 email conflict) were logged only to main background view behind the modal backdrop, with no error state or loading state inside the modal, making the button appear completely non-responsive. Additionally, judges could not be viewed or listed.
+    - Added backend `GET /api/v1/auth/judges` endpoint (`listJudgesHandler` in `auth.controller.ts`, `getJudges` in `auth.service.ts`, routed via `auth.routes.ts` with `authenticate` and `requireRole("admin")`).
+    - Added `getJudges()` to frontend `api.ts`.
+    - Added modal-level error alert (`judgeModalError`) and loading button state (`submittingJudge`).
+    - Added client-side pre-validation (trimmed name, email format, minimum 6-character password with inline warning).
+    - Added "+ Add Judge" button and full "Judges Directory" table to the "Panels & Judges" tab.
+    - Enhanced "Create Evaluation Panel" modal with interactive judge selection checkboxes from directory.
+  - **Add Participant Workflow Defect Resolution:**
+    - Root cause: If no competition was selected or loaded, `handleCreateParticipant` executed a silent `if (!selectedCompetitionId) return;` without alerting the user. Backend validation failures were suppressed from modal view with no disabled or loading state.
+    - Added validation guard displaying actionable error if no active competition is selected.
+    - Added modal-level error alert (`participantModalError`) and loading button state (`submittingParticipant`).
+    - Added field pre-validation (non-empty trimmed name, uppercase registrationId, email format).
+    - Automatically refreshed participant table on successful creation and displayed success notification toast.
+  - **Client API Error Normalization:** Enhanced `api.ts` error response handler to parse structured Zod/Mongoose `data.error.details` arrays/objects and append actionable field diagnostics directly to `err.message`.
+- **Files created/modified:** `server/.env`, `server/package.json`, `server/src/services/auth.service.ts`, `server/src/controllers/auth.controller.ts`, `server/src/routes/auth.routes.ts`, `server/src/scripts/verify-workflows.ts`, `client/src/services/api.ts`, `client/src/pages/admin/AdminDashboardPage.tsx`, `README.md`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run verify:atlas` in `server/`, `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts`, `npm run typecheck` in `server/`, `npm run build` in `server/`, `npm run build` in `client/`.
+- **Verification results:**
+  - Atlas connectivity verified end-to-end with live database read/write and ping.
+  - Judge provisioning, listing, and password authentication verified.
+  - Participant registration, persistence, and duplicate registration conflict prevention (HTTP 409) verified.
+  - Client and server production builds passed cleanly.
+- **Completion date:** 2026-10-22
+
 ---
 
 ## D. In-Progress Tasks
@@ -482,8 +510,9 @@ _None. All tracked project milestones are complete._
 | P-09 | Frontend implementation (React + TS + Vite; auth, admin, judge, leaderboard pages) | P-06, P-08 | **Completed (T-19)** |
 | P-11 | Documentation: README content, `docs/` API reference, architecture specs | parallel | **Completed (T-20)** |
 | P-12 | CI tooling & GitHub Actions workflow | parallel | **Completed (T-21)** |
+| DEF-01 | MongoDB Atlas verification, Add Judge & Add Participant defect resolutions | T-19, T-20 | **Completed (T-22)** |
 
-Tracked tasks: 21 completed (T-01…T-21) + 0 pending = 21 → **100% complete**.
+Tracked tasks: 22 completed (T-01…T-22) + 0 pending = 22 → **100% complete**.
 
 ---
 

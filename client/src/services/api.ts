@@ -49,10 +49,29 @@ class ApiService {
         window.dispatchEvent(new Event("karvaan_auth_expired"));
       }
 
-      const errorMessage =
+      let errorMessage =
         data?.error?.message ||
         data?.message ||
         `HTTP request failed with status ${response.status}`;
+
+      if (data?.error?.details) {
+        if (Array.isArray(data.error.details)) {
+          const detailStrings = data.error.details
+            .map((d: any) => d.message || (d.path ? `${d.path}: ${d.code}` : String(d)))
+            .filter(Boolean);
+          if (detailStrings.length > 0) {
+            errorMessage = `${errorMessage}: ${detailStrings.join(", ")}`;
+          }
+        } else if (typeof data.error.details === "object") {
+          const detailStrings = Object.entries(data.error.details)
+            .map(([field, msg]) => `${field}: ${msg}`)
+            .filter(Boolean);
+          if (detailStrings.length > 0) {
+            errorMessage = `${errorMessage}: ${detailStrings.join(", ")}`;
+          }
+        }
+      }
+
       throw new Error(errorMessage);
     }
 
@@ -72,6 +91,10 @@ class ApiService {
 
   async getMe(): Promise<{ user: User }> {
     return this.request<{ user: User }>("/auth/me");
+  }
+
+  async getJudges(): Promise<{ judges: User[] }> {
+    return this.request<{ judges: User[] }>("/auth/judges");
   }
 
   async provisionUser(userData: {

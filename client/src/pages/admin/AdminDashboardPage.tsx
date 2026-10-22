@@ -29,6 +29,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [panels, setPanels] = useState<Panel[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [parameters, setParameters] = useState<EvaluationParameter[]>([]);
+  const [judges, setJudges] = useState<User[]>([]);
   const [progress, setProgress] = useState<ProgressReport | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -41,6 +42,12 @@ export const AdminDashboardPage: React.FC = () => {
   const [showCreateParticipant, setShowCreateParticipant] = useState(false);
   const [showCreateParam, setShowCreateParam] = useState(false);
   const [showQualifyModal, setShowQualifyModal] = useState(false);
+
+  // Modal in-flight and error states
+  const [submittingJudge, setSubmittingJudge] = useState<boolean>(false);
+  const [judgeModalError, setJudgeModalError] = useState<string | null>(null);
+  const [submittingParticipant, setSubmittingParticipant] = useState<boolean>(false);
+  const [participantModalError, setParticipantModalError] = useState<string | null>(null);
 
   // Form states
   const [newCompName, setNewCompName] = useState("");
@@ -84,8 +91,18 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const loadJudges = async () => {
+    try {
+      const res = await api.getJudges();
+      setJudges(res.judges);
+    } catch (err: any) {
+      console.warn("Could not load judges list:", err.message);
+    }
+  };
+
   useEffect(() => {
     loadCompetitions();
+    loadJudges();
   }, []);
 
   // When competition changes, reload child entities
@@ -156,20 +173,42 @@ export const AdminDashboardPage: React.FC = () => {
 
   const handleCreateJudge = async (e: React.FormEvent) => {
     e.preventDefault();
+    setJudgeModalError(null);
+
+    const trimmedName = newJudgeName.trim();
+    const trimmedEmail = newJudgeEmail.trim().toLowerCase();
+
+    if (!trimmedName) {
+      setJudgeModalError("Judge full name is required.");
+      return;
+    }
+    if (!trimmedEmail || !/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+      setJudgeModalError("A valid email address is required.");
+      return;
+    }
+    if (newJudgePassword.length < 6) {
+      setJudgeModalError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setSubmittingJudge(true);
     try {
       await api.provisionUser({
-        name: newJudgeName,
-        email: newJudgeEmail,
+        name: trimmedName,
+        email: trimmedEmail,
         password: newJudgePassword,
         role: "judge",
       });
-      notifySuccess(`Judge account for '${newJudgeName}' created successfully.`);
+      notifySuccess(`Judge account for '${trimmedName}' provisioned successfully.`);
       setNewJudgeName("");
       setNewJudgeEmail("");
       setNewJudgePassword("");
       setShowCreateJudge(false);
+      await loadJudges();
     } catch (err: any) {
-      setActionError(err.message);
+      setJudgeModalError(err.message || "Failed to provision judge account.");
+    } finally {
+      setSubmittingJudge(false);
     }
   };
 
@@ -195,23 +234,49 @@ export const AdminDashboardPage: React.FC = () => {
 
   const handleCreateParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCompetitionId) return;
+    setParticipantModalError(null);
+
+    if (!selectedCompetitionId) {
+      setParticipantModalError("No active competition selected. Please create or select a competition first.");
+      return;
+    }
+
+    const trimmedName = newPartName.trim();
+    const trimmedRegId = newPartRegId.trim().toUpperCase();
+    const trimmedEmail = newPartEmail.trim().toLowerCase();
+
+    if (!trimmedRegId) {
+      setParticipantModalError("Registration ID is required.");
+      return;
+    }
+    if (!trimmedName) {
+      setParticipantModalError("Participant or team name is required.");
+      return;
+    }
+    if (trimmedEmail && !/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+      setParticipantModalError("Please enter a valid email address.");
+      return;
+    }
+
+    setSubmittingParticipant(true);
     try {
       await api.createParticipant(selectedCompetitionId, {
-        name: newPartName,
-        registrationId: newPartRegId,
-        email: newPartEmail || undefined,
+        name: trimmedName,
+        registrationId: trimmedRegId,
+        email: trimmedEmail || undefined,
         panel: newPartPanel || undefined,
       });
-      notifySuccess(`Participant '${newPartName}' registered`);
+      notifySuccess(`Participant '${trimmedName}' (${trimmedRegId}) registered successfully.`);
       setNewPartName("");
       setNewPartRegId("");
       setNewPartEmail("");
       setNewPartPanel("");
       setShowCreateParticipant(false);
-      loadCompetitionData(selectedCompetitionId);
+      await loadCompetitionData(selectedCompetitionId);
     } catch (err: any) {
-      setActionError(err.message);
+      setParticipantModalError(err.message || "Failed to register participant.");
+    } finally {
+      setSubmittingParticipant(false);
     }
   };
 
@@ -380,9 +445,12 @@ export const AdminDashboardPage: React.FC = () => {
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               className="btn btn-secondary"
-              onClick={() => setShowCreateJudge(true)}
+              onClick={() => {
+                setJudgeModalError(null);
+                setShowCreateJudge(true);
+              }}
             >
-              + Provision Judge
+              + Add Judge
             </button>
             <button
               className="btn btn-gold"
@@ -507,12 +575,23 @@ export const AdminDashboardPage: React.FC = () => {
                   Judges only evaluate participants assigned to their panels.
                 </p>
               </div>
-              <button
-                className="btn btn-gold"
-                onClick={() => setShowCreatePanel(true)}
-              >
-                + Create Panel
-              </button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setJudgeModalError(null);
+                    setShowCreateJudge(true);
+                  }}
+                >
+                  + Add Judge
+                </button>
+                <button
+                  className="btn btn-gold"
+                  onClick={() => setShowCreatePanel(true)}
+                >
+                  + Create Panel
+                </button>
+              </div>
             </div>
 
             <div className="table-container">
@@ -566,6 +645,102 @@ export const AdminDashboardPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Judges Directory */}
+            <div style={{ marginTop: "40px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "16px",
+                }}
+              >
+                <div>
+                  <h3 style={{ fontSize: "18px", marginBottom: "4px" }}>Judges Directory</h3>
+                  <p style={{ color: "var(--color-slate)", fontSize: "13px" }}>
+                    Provisioned judge accounts available for evaluation panel assignment.
+                  </p>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setJudgeModalError(null);
+                    setShowCreateJudge(true);
+                  }}
+                >
+                  + Add Judge
+                </button>
+              </div>
+
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Judge Name</th>
+                      <th>Email</th>
+                      <th>Judge ID</th>
+                      <th>Assigned Panels</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {judges.length > 0 ? (
+                      judges.map((j) => {
+                        const jId = j.id || (j as any)._id;
+                        const assignedPanels = panels.filter((p) =>
+                          p.judges.some((pj) => pj._id === jId),
+                        );
+                        return (
+                          <tr key={jId}>
+                            <td style={{ fontWeight: 600 }}>{j.name}</td>
+                            <td>{j.email}</td>
+                            <td style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--color-slate)" }}>
+                              {jId}
+                            </td>
+                            <td>
+                              {assignedPanels.length > 0 ? (
+                                assignedPanels.map((p) => (
+                                  <span
+                                    key={p._id}
+                                    style={{
+                                      display: "inline-block",
+                                      background: "var(--color-ivory-surface)",
+                                      border: "1px solid var(--color-border)",
+                                      padding: "2px 8px",
+                                      borderRadius: "4px",
+                                      marginRight: "6px",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    {p.name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span style={{ color: "var(--color-slate)", fontStyle: "italic", fontSize: "12px" }}>
+                                  Unassigned
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`badge badge-${j.isActive ? "active" : "inactive"}`}>
+                                {j.isActive ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
+                          No judges provisioned yet. Click "+ Add Judge" to provision a judge account.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -588,7 +763,14 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
               <button
                 className="btn btn-gold"
-                onClick={() => setShowCreateParticipant(true)}
+                onClick={() => {
+                  if (!selectedCompetitionId) {
+                    setActionError("Please select or create an active competition first.");
+                    return;
+                  }
+                  setParticipantModalError(null);
+                  setShowCreateParticipant(true);
+                }}
               >
                 + Register Participant
               </button>
@@ -923,6 +1105,23 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="modal-backdrop">
           <div className="modal-content">
             <h3 style={{ marginBottom: "16px" }}>Provision Judge Account</h3>
+            
+            {judgeModalError && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: "var(--color-danger-bg)",
+                  color: "var(--color-danger)",
+                  border: "1px solid rgba(142, 46, 46, 0.2)",
+                  borderRadius: "4px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                }}
+              >
+                {judgeModalError}
+              </div>
+            )}
+
             <form onSubmit={handleCreateJudge}>
               <div style={{ marginBottom: "12px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
@@ -934,6 +1133,7 @@ export const AdminDashboardPage: React.FC = () => {
                   onChange={(e) => setNewJudgeName(e.target.value)}
                   placeholder="Dr. Eleanor Vance"
                   required
+                  disabled={submittingJudge}
                 />
               </div>
               <div style={{ marginBottom: "12px" }}>
@@ -946,6 +1146,7 @@ export const AdminDashboardPage: React.FC = () => {
                   onChange={(e) => setNewJudgeEmail(e.target.value)}
                   placeholder="judge@institution.edu"
                   required
+                  disabled={submittingJudge}
                 />
               </div>
               <div style={{ marginBottom: "20px" }}>
@@ -958,14 +1159,26 @@ export const AdminDashboardPage: React.FC = () => {
                   onChange={(e) => setNewJudgePassword(e.target.value)}
                   placeholder="Minimum 6 characters"
                   required
+                  disabled={submittingJudge}
                 />
+                <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
+                  Password must be at least 6 characters.
+                </div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateJudge(false)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setJudgeModalError(null);
+                    setShowCreateJudge(false);
+                  }}
+                  disabled={submittingJudge}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-gold">
-                  Provision Account
+                <button type="submit" className="btn btn-gold" disabled={submittingJudge}>
+                  {submittingJudge ? "Provisioning..." : "Provision Account"}
                 </button>
               </div>
             </form>
@@ -1002,12 +1215,69 @@ export const AdminDashboardPage: React.FC = () => {
                   placeholder="Focus areas..."
                 />
               </div>
+
+              {/* Interactive Judge Selection */}
+              {judges.length > 0 && (
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>
+                    Select Judges from Directory:
+                  </label>
+                  <div
+                    style={{
+                      maxHeight: "130px",
+                      overflowY: "auto",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "4px",
+                      padding: "8px 12px",
+                      background: "var(--color-ivory-surface)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                    }}
+                  >
+                    {judges.map((j) => {
+                      const jId = j.id || (j as any)._id;
+                      const isSelected = newPanelJudges.includes(jId);
+                      return (
+                        <label
+                          key={jId}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "13px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            style={{ width: "auto" }}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setNewPanelJudges([...newPanelJudges, jId]);
+                              } else {
+                                setNewPanelJudges(newPanelJudges.filter((id) => id !== jId));
+                              }
+                            }}
+                          />
+                          <span>
+                            <strong>{j.name}</strong> ({j.email})
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
-                  Judge ID(s) (comma-separated 24-character ObjectIds)
+                  Assigned Judge IDs (comma-separated ObjectIds)
                 </label>
                 <input
                   type="text"
+                  value={newPanelJudges.join(", ")}
                   onChange={(e) =>
                     setNewPanelJudges(
                       e.target.value
@@ -1019,6 +1289,9 @@ export const AdminDashboardPage: React.FC = () => {
                   placeholder="e.g. 6ad90b62ebbc07ae63a150a8"
                   required
                 />
+                <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
+                  Select judges from the directory above or paste 24-character ObjectIds.
+                </div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreatePanel(false)}>
@@ -1037,7 +1310,26 @@ export const AdminDashboardPage: React.FC = () => {
       {showCreateParticipant && (
         <div className="modal-backdrop">
           <div className="modal-content">
-            <h3 style={{ marginBottom: "16px" }}>Register Participant</h3>
+            <h3 style={{ marginBottom: "16px" }}>
+              Register Participant {selectedCompetition ? `— ${selectedCompetition.name}` : ""}
+            </h3>
+
+            {participantModalError && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: "var(--color-danger-bg)",
+                  color: "var(--color-danger)",
+                  border: "1px solid rgba(142, 46, 46, 0.2)",
+                  borderRadius: "4px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                }}
+              >
+                {participantModalError}
+              </div>
+            )}
+
             <form onSubmit={handleCreateParticipant}>
               <div style={{ marginBottom: "12px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
@@ -1049,7 +1341,11 @@ export const AdminDashboardPage: React.FC = () => {
                   onChange={(e) => setNewPartRegId(e.target.value)}
                   placeholder="e.g. KVN-2026-101"
                   required
+                  disabled={submittingParticipant}
                 />
+                <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
+                  Must be unique within this competition (e.g. KVN-2026-001).
+                </div>
               </div>
               <div style={{ marginBottom: "12px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
@@ -1061,6 +1357,7 @@ export const AdminDashboardPage: React.FC = () => {
                   onChange={(e) => setNewPartName(e.target.value)}
                   placeholder="Student or Team Lead"
                   required
+                  disabled={submittingParticipant}
                 />
               </div>
               <div style={{ marginBottom: "12px" }}>
@@ -1072,6 +1369,7 @@ export const AdminDashboardPage: React.FC = () => {
                   value={newPartEmail}
                   onChange={(e) => setNewPartEmail(e.target.value)}
                   placeholder="contact@team.edu"
+                  disabled={submittingParticipant}
                 />
               </div>
               <div style={{ marginBottom: "20px" }}>
@@ -1081,6 +1379,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <select
                   value={newPartPanel}
                   onChange={(e) => setNewPartPanel(e.target.value)}
+                  disabled={submittingParticipant}
                 >
                   <option value="">-- No Panel (Unassigned) --</option>
                   {panels.map((p) => (
@@ -1094,12 +1393,16 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setShowCreateParticipant(false)}
+                  onClick={() => {
+                    setParticipantModalError(null);
+                    setShowCreateParticipant(false);
+                  }}
+                  disabled={submittingParticipant}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-gold">
-                  Register
+                <button type="submit" className="btn btn-gold" disabled={submittingParticipant}>
+                  {submittingParticipant ? "Registering..." : "Register Participant"}
                 </button>
               </div>
             </form>

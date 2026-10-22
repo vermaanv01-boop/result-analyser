@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && tsx --test test/**/*.test.ts",
-    "seed:admin": "tsx src/scripts/seed-admin.ts"
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "verify:atlas": "tsx src/scripts/verify-workflows.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -245,10 +245,28 @@ docker run -d --name srs-mongo -p 27017:27017 mongo:8
 Ensure your local `mongod` service is started on `mongodb://127.0.0.1:27017`.
 
 ### Option C: MongoDB Atlas Cloud
-Create a free M0 cluster on [MongoDB Atlas](https://www.mongodb.com/atlas) and set `MONGODB_URI` in `server/.env`:
+Create a free M0 cluster on [MongoDB Atlas](https://www.mongodb.com/atlas):
+1. **Network Access:** In Atlas Security &rarr; Network Access, add your current IP address (or `0.0.0.0/0` to allow all IP addresses for testing/deployment).
+2. **Database User:** In Database Access, create a database user (e.g., `karvaan_admin`) with `readWrite` role on the `student_ranking` database.
+3. **Connection String:** Copy the `mongodb+srv://` connection string and specify the database name `/student_ranking`.
+4. Configure in `server/.env`:
 ```env
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.example.mongodb.net/karvaan?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://karvaan_admin:your_secure_password@cluster0.example.mongodb.net/student_ranking?retryWrites=true&w=majority
 ```
+
+> [!WARNING]
+> **Avoid Common Atlas URI Pitfalls:**
+> - Remove literal angle brackets: Do not leave `<` or `>` or `%3C` in `<username>` or `<password>` from template strings.
+> - URL-encode special characters in passwords (e.g. `@` &rarr; `%40`, `#` &rarr; `%23`, `:` &rarr; `%3A`).
+> - Ensure the target database name is explicitly specified (e.g. `/student_ranking`), otherwise queries will default to the `test` database.
+
+### Verify Database Connectivity
+Verify that your backend can connect to Atlas and perform read/write operations:
+```bash
+cd server
+npm run verify:atlas
+```
+This script validates connectivity, tests admin authentication, tests judge provisioning, tests participant registration, verifies conflict prevention, and cleans up temporary test records non-destructively.
 
 ### Automatic Index Creation
 No manual database migrations or schema scripts are required. Mongoose automatically builds all required compound unique indexes on bootstrap:
@@ -442,6 +460,14 @@ Detailed technical references are maintained in the repository:
 ### 5. Port 3000 or 5173 already in use
 - **Cause:** Another process is already bound to port 3000 or 5173.
 - **Solution:** Terminate conflicting processes or change the port in `server/.env` (`PORT=3001`) and update `client/vite.config.ts`.
+
+### 6. MongoDB Atlas authentication error: `bad auth: Authentication failed`
+- **Cause:** The `MONGODB_URI` contains template angle brackets (e.g., `<username>` or `%3C`), an incorrect database user password, or special characters that require percent-encoding.
+- **Solution:** Verify the username and password in MongoDB Atlas Security &rarr; Database Access. Remove any `<` or `>` characters from `.env`. Run `npm run verify:atlas` in `server/` to diagnose the connection.
+
+### 7. Add Judge or Register Participant appears non-responsive
+- **Cause:** No active competition is selected, required fields failed validation (e.g. password < 6 characters or duplicate registration ID), or the backend could not connect to MongoDB.
+- **Solution:** Ensure a competition is selected in the top bar. Check the modal error banner for actionable validation feedback. Verify backend readiness at `/api/v1/health/ready`.
 
 ---
 
