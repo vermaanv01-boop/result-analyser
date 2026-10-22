@@ -15,7 +15,7 @@ Last updated: 2026-10-22
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 26 of 26 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24, T-25, T-26 delivered and verified)
+- **Overall completion status:** 27 of 27 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24, T-25, T-26, T-27 delivered and verified)
 
 ---
 
@@ -554,7 +554,23 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 
 ---
 
-## D. In-Progress Tasks
+### T-27 - Email Notifications: Participant Confirmation and Judge Activation (verified)
+
+- **Implementation summary:**
+  - Added a reusable email delivery layer (`server/src/services/email.service.ts`) using `nodemailer` with a lazily-created SMTP transporter, a bounded retry wrapper (`sendEmailWithRetry`, attempts = `EMAIL_DELIVERY_RETRIES + 1`, linear backoff), and no secret/password logging.
+  - Added `server/src/services/notification.service.ts` with participant registration confirmation, judge activation token creation (invalidates prior unused tokens), judge activation email (link `${APP_PUBLIC_URL}/judge/activate?token=...`), and `activateJudgeAccount` enforcing hashed single-use, expiring tokens and bcrypt password rehashing.
+  - Added `server/src/models/activation-token.model.ts` (`ActivationToken`) with a unique `tokenHash`, `expiresAt` TTL index, `usedAt` single-use marker, and crypto-based token generation/hashing helpers.
+  - Wired notifications into existing flows without altering auth, evaluation, or panel-management behavior: `registerParticipant` sends a registration confirmation; `provisionUser` sends a judge activation email after account creation. Delivery failures are caught and logged (never thrown), so persistence always succeeds.
+  - Added the public `POST /api/v1/auth/judge/activate` endpoint (validator, controller, route) reusing the existing auth middleware stack and error handling. Email delivery is entirely optional; when SMTP is unconfigured the flows still succeed.
+- **Files changed:** `server/src/models/activation-token.model.ts`, `server/src/services/email.service.ts`, `server/src/services/notification.service.ts`, `server/src/config/env.ts`, `server/src/services/auth.service.ts`, `server/src/controllers/auth.controller.ts`, `server/src/routes/auth.routes.ts`, `server/src/validators/auth.validators.ts`, `server/package.json`, `.env.example`, `server/test/app.test.ts`, `server/test/integration.test.ts`, `README.md`, `docs/API_REFERENCE.md`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run typecheck` (server), `npx tsc -p tsconfig.test.json` (server), `npm test` (server), `npm run build` (server), `npm run build` (client).
+- **Verification results:**
+  - Non-database server suite: **53 tests passed, 0 failed** (20 database-dependent tests cancelled because MongoDB is unavailable locally).
+  - Server typecheck, test typecheck, and production build passed. Client typecheck and production build passed.
+  - Coverage added: registration confirmation invoked on successful participant registration; registration still succeeds when email delivery throws; judge provisioning triggers activation notification; invalid token rejected (400); reused token rejected (400); password hashed (not stored plaintext) and login works after activation. Email provider is mocked in tests; no real emails are sent.
+  - The full database integration suite was **not executed locally** because no MongoDB instance was reachable at `127.0.0.1:27017`; it must not be run against Atlas.
+- **Remaining defects:** None identified in the notification scope within the verified environment. Database-backed integration behavior remains unverified locally.
+- **Completion date:** 2026-10-22
 
 _None. All tracked project milestones are complete._
 
@@ -572,8 +588,9 @@ _None. All tracked project milestones are complete._
 | T-24 | Dedicated Judge Login page and judge-only dashboard | T-19, T-22 | **Completed** |
 | T-25 | Readable judge/panel selectors, panel editing, and assignment integrity | T-19, T-22 | **Completed** |
 | T-26 | Judge evaluation workflow, authorization hardening, and integrity safeguards | T-19, T-22, T-24 | **Completed** |
+| T-27 | Email notifications: participant confirmation and judge activation | T-03, T-19, T-22 | **Completed** |
 
-Tracked tasks: 26 completed (T-01…T-22) + 0 pending = 26 – **100% complete**.
+Tracked tasks: 27 completed (T-01…T-22) + 0 pending = 27 – **100% complete**.
 
 ---
 

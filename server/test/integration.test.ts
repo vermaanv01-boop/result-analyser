@@ -190,21 +190,6 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
     const j2LoginData = (await j2Login.json()) as any;
     otherJudgeToken = j2LoginData.token;
 
-    // Judge 2 logs in
-    const j2Login = await fetch(`${baseUrl}/api/v1/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: "judge.doe@karvaan.org",
-        password: "JudgePassword123!",
-      }),
-    });
-    const j2LoginData = (await j2Login.json()) as any;
-    otherJudgeToken = j2LoginData.token;
-
-    const j2LoginData = (await j2Login.json()) as any;
-    otherJudgeToken = j2LoginData.token;
-
     // Judge tries to provision a user -> 403 Forbidden
     const forbiddenRes = await fetch(`${baseUrl}/api/v1/auth/users`, {
       method: "POST",

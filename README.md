@@ -227,6 +227,25 @@ cp .env.example .env
 | `JWT_SECRET` | **Yes (Prod)** | Internal dev string | Secret key for signing JWTs. **Must be $\ge$ 32 characters in production.** | `development_super_secret_jwt_key_karvaan_2026_min32chars` |
 | `JWT_EXPIRES_IN` | No | `24h` | JWT validity duration (e.g., `24h`, `7d`, `3600s`) | `24h` |
 
+### Optional Email / Notification Variables
+
+Email delivery is optional. When SMTP is not configured, the server still persists users and logs a non-fatal delivery warning.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SMTP_HOST` | _(unset)_ | SMTP server host; email is skipped when empty |
+| `SMTP_PORT` | `587` | SMTP server port |
+| `SMTP_SECURE` | `false` | Use TLS on connect (set `true` for port 465) |
+| `SMTP_USER` | _(unset)_ | SMTP auth username |
+| `SMTP_PASS` | _(unset)_ | SMTP auth password (never logged) |
+| `SMTP_FROM` | `no-reply@karvaan.org` | From address on outgoing mail |
+| `EMAIL_DELIVERY_RETRIES` | `2` | Additional retry attempts on delivery failure |
+| `EMAIL_DELIVERY_RETRY_DELAY_MS` | `250` | Linear backoff base delay between retries |
+| `APP_PUBLIC_URL` | `http://localhost:5173` | Base URL used to build judge activation links |
+| `JUDGE_ACTIVATION_TOKEN_TTL_HOURS` | `24` | Judge activation token lifetime in hours |
+
+> Notification flows: participants receive a registration confirmation on `POST /auth/register-participant`; judges provisioned by an admin receive an account-activation link that completes setup via `POST /auth/judge/activate`. Activation tokens are single-use, hashed at rest, and expire.
+
 ### Optional Admin Seeding Variables (Used by `npm run seed:admin`)
 
 | Variable | Default | Description |

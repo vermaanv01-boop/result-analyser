@@ -90,6 +90,18 @@ List all judge accounts for administrator panel-assignment selectors.
 - **Response (200)**: `{ "judges": [{ "id": "...", "name": "Dr. Sarah Miller", "email": "smiller@evaluator.org", "role": "judge", "isActive": true }] }`
 - **Notes**: Includes inactive judges so administrators can recognize and remove stale assignments; the UI disables inactive accounts for new selection.
 
+### `POST /auth/judge/activate`
+Public endpoint that completes judge onboarding using the single-use activation token emailed at account provisioning time.
+- **Request Body**:
+  ```json
+  { "token": "<activation-token-from-email>", "password": "new_password_123" }
+  ```
+- **Response (200)**: `{ "message": "Judge account activated", "user": { "id": "...", "email": "...", "role": "judge" } }`
+- **Notes**:
+  - The token is single-use, hashed at rest, and expires after `JUDGE_ACTIVATION_TOKEN_TTL_HOURS` (default 24h).
+  - Invalid, expired, or already-used tokens return `400`.
+  - The submitted password is hashed with bcrypt before storage; plaintext passwords are never emailed or logged.
+
 ---
 
 ## 2. Competitions (`/competitions`)
