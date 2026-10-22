@@ -7,6 +7,7 @@ import competitionRoutes from "./routes/competition.routes";
 import evaluationRoutes from "./routes/evaluation.routes";
 import healthRoutes from "./routes/health.routes";
 import judgeRoutes from "./routes/judge.routes";
+import portalRoutes from "./routes/portal.routes";
 
 export function createApp(): Express {
   const app: Express = express();
@@ -20,6 +21,7 @@ export function createApp(): Express {
   app.use("/api/v1/competitions", competitionRoutes);
   app.use("/api/v1/evaluations", evaluationRoutes);
   app.use("/api/v1/judge", judgeRoutes);
+  app.use("/api/v1/participant", portalRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

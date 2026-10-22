@@ -4,17 +4,25 @@ import {
   loginHandler,
   meHandler,
   provisionUserHandler,
+  registerParticipantHandler,
 } from "../controllers/auth.controller";
 import { authenticate, requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import {
   createUserSchema,
   loginSchema,
+  registerParticipantSchema,
 } from "../validators/auth.validators";
 
 const router = Router();
 
 router.post("/login", validate({ body: loginSchema }), loginHandler);
+
+router.post(
+  "/register-participant",
+  validate({ body: registerParticipantSchema }),
+  registerParticipantHandler,
+);
 
 router.get("/me", authenticate, meHandler);
 

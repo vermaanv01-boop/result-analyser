@@ -1,9 +1,15 @@
 import type { NextFunction, Response } from "express";
 import type { ValidatedRequest } from "../middleware/validate";
-import { getJudges, login, provisionUser } from "../services/auth.service";
+import {
+  getJudges,
+  login,
+  provisionUser,
+  registerParticipant,
+} from "../services/auth.service";
 import type {
   createUserSchema,
   loginSchema,
+  registerParticipantSchema,
 } from "../validators/auth.validators";
 
 export async function loginHandler(
@@ -14,6 +20,19 @@ export async function loginHandler(
   try {
     const result = await login(req.body.email, req.body.password);
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function registerParticipantHandler(
+  req: ValidatedRequest<{ body: typeof registerParticipantSchema }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await registerParticipant(req.body);
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }
