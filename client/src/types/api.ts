@@ -70,10 +70,102 @@ export interface Participant {
   registrationId: string;
   email: string | null;
   panel: { _id: string; name: string; isActive: boolean } | string | null;
+  teamMembers?: string[];
   isActive: boolean;
   eligibility: ParticipantEligibility[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ParticipantProfile {
+  id: string;
+  name: string;
+  registrationId: string;
+  email: string;
+  teamMembers: string[];
+  eligibility: ParticipantEligibility[];
+  competition: {
+    id: string;
+    name: string;
+    status: string;
+    rounds: Array<{
+      round: number;
+      status: string;
+    }>;
+  };
+  panel: {
+    id: string;
+    name: string;
+    room: string | null;
+  } | null;
+}
+
+export interface ParticipantCriterionBreakdown {
+  parameterId: string;
+  parameterName: string;
+  awardedMarks: number;
+  maxMarks: number;
+  weightage: number;
+  percentage: number;
+}
+
+export interface ParticipantRoundDetail {
+  round: RoundIdentifier;
+  roundScore: number;
+  rawAverageMarks: number;
+  maxPossibleMarks: number;
+  judgeCount: number;
+  panelJudgeCount: number;
+  isComplete: boolean;
+  status: "pending" | "in_progress" | "evaluated";
+  criteriaScores: ParticipantCriterionBreakdown[];
+}
+
+export interface ParticipantResults {
+  competition: {
+    id: string;
+    name: string;
+    status: string;
+    scoringPolicy: {
+      totalSource: string;
+      fixedTotal: number | null;
+    };
+  };
+  evaluationStatus: "pending" | "in_progress" | "completed";
+  rounds: ParticipantRoundDetail[];
+  overallScore: number;
+  rawTotalMarks: number;
+  maxPossibleScore: number;
+}
+
+export interface PublicCompetition {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  roundsCount: number;
+}
+
+export interface RegisterParticipantPayload {
+  competitionId: string;
+  name: string;
+  registrationId: string;
+  email: string;
+  password: string;
+  teamMembers?: string[];
+}
+
+export interface RegisterParticipantResponse {
+  token: string;
+  user: User;
+  participant: {
+    id: string;
+    name: string;
+    registrationId: string;
+    competitionId: string;
+    competitionName: string;
+    teamMembers: string[];
+  };
 }
 
 export interface EvaluationParameter {
