@@ -18,6 +18,7 @@ export const LeaderboardPage: React.FC = () => {
 
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardResult | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -35,6 +36,7 @@ export const LeaderboardPage: React.FC = () => {
   const loadCompetitions = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await api.getCompetitions();
       const comps = res.competitions || [];
       setCompetitions(comps);
@@ -44,8 +46,8 @@ export const LeaderboardPage: React.FC = () => {
       if (active) {
         setSelectedCompetitionId(active._id);
       }
-    } catch (err) {
-      console.error("Failed to load competitions:", err);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load competitions.");
     } finally {
       setLoading(false);
     }
@@ -71,6 +73,7 @@ export const LeaderboardPage: React.FC = () => {
   const fetchLeaderboard = async () => {
     if (!selectedCompetitionId) return;
     try {
+      setError(null);
       let data: LeaderboardResult;
       if (selectedPanelFilter !== "all") {
         data = await api.getPanelLeaderboard(selectedCompetitionId, selectedPanelFilter);
@@ -81,8 +84,8 @@ export const LeaderboardPage: React.FC = () => {
       }
       setLeaderboardData(data);
       setLastRefreshedAt(new Date());
-    } catch (err) {
-      console.error("Failed to fetch leaderboard data:", err);
+    } catch (err: any) {
+      setError(err?.message || "Failed to fetch leaderboard data.");
     }
   };
 
@@ -344,13 +347,37 @@ export const LeaderboardPage: React.FC = () => {
         </p>
       </div>
 
+      {error && (
+        <div
+          className="card no-print"
+          style={{
+            marginBottom: "20px",
+            padding: "16px 20px",
+            borderColor: "rgba(142, 46, 46, 0.3)",
+            background: "var(--color-danger-bg)",
+            color: "var(--color-danger)",
+            fontSize: "14px",
+          }}
+        >
+          <strong>Leaderboard unavailable.</strong> {error}
+          <button
+            type="button"
+            onClick={() => (selectedCompetitionId ? fetchLeaderboard() : loadCompetitions())}
+            className="btn btn-secondary"
+            style={{ marginLeft: "12px", padding: "4px 10px", fontSize: "12px" }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {loading && !leaderboardData ? (
         <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "var(--color-navy)" }}>
             Calculating Rankings & Normalized Scores...
           </div>
         </div>
-      ) : entries.length === 0 ? (
+      ) : entries.length === 0 ? error ? null : (
         <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
           <h3 style={{ fontSize: "18px", color: "var(--color-navy)", marginBottom: "8px" }}>
             No Leaderboard Records Available

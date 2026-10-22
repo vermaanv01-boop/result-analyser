@@ -695,4 +695,81 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     assert.equal(p1Progress.round1.submitted, 2);
     assert.equal(p1Progress.round1.isComplete, true);
   });
+
+  test("participant self-registration, re-login, profile, team update, and published results", async () => {
+    const password = "ParticipantPass123!";
+    const registerRes = await fetch(`${baseUrl}/api/v1/auth/register-participant`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        competitionId,
+        name: "Alice Developer",
+        registrationId: "KVN-2026-001",
+        email: "alice@student.edu",
+        password,
+        teamMembers: ["Alice Developer"],
+      }),
+    });
+    assert.equal(registerRes.status, 201);
+    const registerData = (await registerRes.json()) as any;
+    assert.ok(registerData.token);
+    assert.equal(registerData.user.role, "participant");
+    assert.equal(registerData.user.passwordHash, undefined);
+    assert.equal(registerData.participant.id, participant1Id);
+
+    const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "alice@student.edu", password }),
+    });
+    assert.equal(loginRes.status, 200);
+    const loginData = (await loginRes.json()) as any;
+    assert.equal(loginData.user.role, "participant");
+
+    const profileRes = await fetch(`${baseUrl}/api/v1/portal/profile`, {
+      headers: { Authorization: `Bearer ${loginData.token}` },
+    });
+    assert.equal(profileRes.status, 200);
+    const profileData = (await profileRes.json()) as any;
+    assert.equal(profileData.participant.id, participant1Id);
+    assert.equal(profileData.participant.registrationId, "KVN-2026-001");
+    assert.deepEqual(profileData.participant.teamMembers, ["Alice Developer"]);
+
+    const teamRes = await fetch(`${baseUrl}/api/v1/portal/team`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${loginData.token}`,
+      },
+      body: JSON.stringify({ teamMembers: ["Alice Developer", "Carol Analyst"] }),
+    });
+    assert.equal(teamRes.status, 200);
+    const teamData = (await teamRes.json()) as any;
+    assert.deepEqual(teamData.participant.teamMembers, [
+      "Alice Developer",
+      "Carol Analyst",
+    ]);
+
+    const resultsRes = await fetch(`${baseUrl}/api/v1/portal/results`, {
+      headers: { Authorization: `Bearer ${loginData.token}` },
+    });
+    assert.equal(resultsRes.status, 200);
+    const resultsData = (await resultsRes.json()) as any;
+    assert.equal(resultsData.competition.id, competitionId);
+    assert.equal(resultsData.rounds.length, 2);
+    assert.equal(resultsData.overallScore, 75);
+    assert.equal(resultsData.rawTotalMarks, 75);
+
+    const round1 = resultsData.rounds.find((round: any) => round.round === 1);
+    assert.ok(round1);
+    assert.equal(round1.judgeCount, 1);
+    assert.equal(round1.roundScore, 75);
+    assert.equal(round1.criteriaScores.length, 2);
+    assert.equal(round1.criteriaScores[0].parameterName, "Technical Depth");
+
+    const aliasRes = await fetch(`${baseUrl}/api/v1/participant/profile`, {
+      headers: { Authorization: `Bearer ${loginData.token}` },
+    });
+    assert.equal(aliasRes.status, 200);
+  });
 });

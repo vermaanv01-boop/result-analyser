@@ -134,3 +134,23 @@ describe("error contract", (): void => {
     assert.equal(error["path"], "/api/v1/does-not-exist");
   });
 });
+
+describe("participant portal routing", (): void => {
+  test("mounts the documented /portal path behind authentication", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/portal/profile`);
+    const json = (await response.json()) as Record<string, unknown>;
+
+    assert.equal(response.status, 401);
+    const error = json["error"] as Record<string, unknown>;
+    assert.equal(error["code"], ERROR_CODES.UNAUTHORIZED);
+  });
+
+  test("keeps the /participant alias behind authentication", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/participant/profile`);
+    const json = (await response.json()) as Record<string, unknown>;
+
+    assert.equal(response.status, 401);
+    const error = json["error"] as Record<string, unknown>;
+    assert.equal(error["code"], ERROR_CODES.UNAUTHORIZED);
+  });
+});

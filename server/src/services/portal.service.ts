@@ -217,7 +217,11 @@ export async function getParticipantResults(
       panelJudgeCount,
       comp?.scoringPolicy,
     );
-    roundResults[rId] = roundResult;
+    // Only rounds backed by submitted evaluations contribute to the overall score.
+    // Pending rounds must not be treated as zero-scored components.
+    if (rawEvals.length > 0) {
+      roundResults[rId] = roundResult;
+    }
 
     const critMap = criteriaByRound.get(rId);
     const criteriaScores: CriterionBreakdownDTO[] = [];
