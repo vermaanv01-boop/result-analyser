@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../services/api";
-import type { User } from "../types/api";
+import type {
+  RegisterParticipantPayload,
+  RegisterParticipantResponse,
+  User,
+} from "../types/api";
 
 interface AuthContextType {
   user: User | null;
@@ -8,7 +12,9 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isJudge: boolean;
+  isParticipant: boolean;
   login: (email: string, pass: string) => Promise<User>;
+  registerParticipant: (data: RegisterParticipantPayload) => Promise<RegisterParticipantResponse>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }

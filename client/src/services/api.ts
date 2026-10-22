@@ -6,7 +6,12 @@ import type {
   LeaderboardResult,
   Panel,
   Participant,
+  ParticipantProfile,
+  ParticipantResults,
   ProgressReport,
+  PublicCompetition,
+  RegisterParticipantPayload,
+  RegisterParticipantResponse,
   RoundIdentifier,
   RoundStatus,
   User,
@@ -386,6 +391,38 @@ class ApiService {
     return this.request<LeaderboardResult>(
       `/competitions/${competitionId}/leaderboard/panel/${panelId}`,
     );
+  }
+
+  // --- Participant Portal Endpoints ---
+  async getPublicCompetitions(): Promise<{ competitions: PublicCompetition[] }> {
+    return this.request<{ competitions: PublicCompetition[] }>("/portal/competitions");
+  }
+
+  async registerParticipant(data: RegisterParticipantPayload): Promise<RegisterParticipantResponse> {
+    const res = await this.request<RegisterParticipantResponse>("/auth/register-participant", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    if (res.token && res.user) {
+      localStorage.setItem("karvaan_token", res.token);
+      localStorage.setItem("karvaan_user", JSON.stringify(res.user));
+    }
+    return res;
+  }
+
+  async getParticipantProfile(): Promise<{ participant: ParticipantProfile }> {
+    return this.request<{ participant: ParticipantProfile }>("/portal/profile");
+  }
+
+  async getParticipantResults(): Promise<ParticipantResults> {
+    return this.request<ParticipantResults>("/portal/results");
+  }
+
+  async updateParticipantTeam(teamMembers: string[]): Promise<{ participant: ParticipantProfile }> {
+    return this.request<{ participant: ParticipantProfile }>("/portal/team", {
+      method: "PATCH",
+      body: JSON.stringify({ teamMembers }),
+    });
   }
 }
 
