@@ -69,6 +69,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res.user;
   };
 
+  const registerParticipant = async (
+    data: RegisterParticipantPayload,
+  ): Promise<RegisterParticipantResponse> => {
+    const res = await api.registerParticipant(data);
+    setUser(res.user);
+    setToken(res.token);
+    return res;
+  };
+
   const logout = () => {
     api.logout();
     setUser(null);
@@ -77,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAdmin = user?.role === "admin";
   const isJudge = user?.role === "judge";
+  const isParticipant = user?.role === "participant";
 
   return (
     <AuthContext.Provider
@@ -86,7 +96,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isAdmin,
         isJudge,
+        isParticipant,
         login,
+        registerParticipant,
         logout,
         refreshUser,
       }}

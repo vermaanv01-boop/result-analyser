@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { useAuth } from "../../context/AuthContext";
 
@@ -19,7 +19,6 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-
     try {
       const user = await login(email, password);
       if (from) {
@@ -28,6 +27,8 @@ export const LoginPage: React.FC = () => {
         navigate("/admin", { replace: true });
       } else if (user.role === "judge") {
         navigate("/judge", { replace: true });
+      } else if (user.role === "participant") {
+        navigate("/participant", { replace: true });
       } else {
         navigate("/leaderboard", { replace: true });
       }
