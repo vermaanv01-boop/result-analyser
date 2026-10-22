@@ -56,6 +56,21 @@ export interface Panel {
   updatedAt: string;
 }
 
+export interface JudgeAssignedPanel {
+  _id: string;
+  name: string;
+  description: string | null;
+  competition:
+    | {
+        _id: string;
+        name: string;
+        status: CompetitionStatus;
+        rounds: CompetitionRound[];
+      }
+    | string;
+  isActive: boolean;
+}
+
 export interface ParticipantEligibility {
   round: RoundIdentifier;
   eligible: boolean;

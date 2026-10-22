@@ -135,6 +135,17 @@ describe("error contract", (): void => {
   });
 });
 
+describe("judge portal routing", (): void => {
+  test("requires authentication for judge endpoints", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/judge/panels`);
+    const json = (await response.json()) as Record<string, unknown>;
+
+    assert.equal(response.status, 401);
+    const error = json["error"] as Record<string, unknown>;
+    assert.equal(error["code"], ERROR_CODES.UNAUTHORIZED);
+  });
+});
+
 describe("participant portal routing", (): void => {
   test("mounts the documented /portal path behind authentication", async (): Promise<void> => {
     const response = await fetch(`${baseUrl}/api/v1/portal/profile`);

@@ -221,6 +221,22 @@ tr:hover td {
   background: var(--color-ivory-surface);
 }
 
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: loading-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Modal and Overlays */
 .modal-backdrop {
   position: fixed;

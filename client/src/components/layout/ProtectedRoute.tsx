@@ -6,11 +6,19 @@ import type { UserRole } from "../../types/api";
 interface ProtectedRouteProps {
   children: React.ReactElement;
   allowedRoles?: UserRole[];
+  loginPath?: string;
 }
+
+const HOME_BY_ROLE: Record<UserRole, string> = {
+  admin: "/admin",
+  judge: "/judge",
+  participant: "/participant",
+};
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   allowedRoles,
+  loginPath = "/login",
 }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -34,11 +42,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/leaderboard" replace />;
+    return <Navigate to={HOME_BY_ROLE[user.role] ?? "/leaderboard"} replace />;
   }
 
   return children;

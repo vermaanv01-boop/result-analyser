@@ -4,6 +4,7 @@ import { Navbar } from "./components/layout/Navbar";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
+import { JudgeLoginPage } from "./pages/auth/JudgeLoginPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { JudgePortalPage } from "./pages/judge/JudgePortalPage";
@@ -20,6 +21,7 @@ export const App: React.FC = () => {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/judge/login" element={<JudgeLoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
 
@@ -33,11 +35,11 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* Protected Judge Portal (Judge + Admin) */}
+              {/* Protected Judge Dashboard (Judge Only) */}
               <Route
                 path="/judge"
                 element={
-                  <ProtectedRoute allowedRoles={["judge", "admin"]}>
+                  <ProtectedRoute allowedRoles={["judge"]} loginPath="/judge/login">
                     <JudgePortalPage />
                   </ProtectedRoute>
                 }

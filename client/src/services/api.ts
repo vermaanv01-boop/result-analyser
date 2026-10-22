@@ -3,6 +3,7 @@ import type {
   Competition,
   Evaluation,
   EvaluationParameter,
+  JudgeAssignedPanel,
   LeaderboardResult,
   Panel,
   Participant,
@@ -348,8 +349,8 @@ class ApiService {
   }
 
   // --- Judge Portal Endpoints ---
-  async getJudgePanels(): Promise<{ panels: Panel[] }> {
-    return this.request<{ panels: Panel[] }>("/judge/panels");
+  async getJudgePanels(): Promise<{ panels: JudgeAssignedPanel[] }> {
+    return this.request<{ panels: JudgeAssignedPanel[] }>("/judge/panels");
   }
 
   async getJudgePanelParticipants(panelId: string): Promise<{

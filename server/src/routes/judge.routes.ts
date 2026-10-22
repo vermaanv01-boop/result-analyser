@@ -10,7 +10,7 @@ import { idParamsSchema } from "../validators/common";
 
 const router = Router();
 
-router.use(authenticate, requireRole("judge", "admin"));
+router.use(authenticate, requireRole("judge"));
 
 router.get("/panels", getJudgePanelsHandler);
 

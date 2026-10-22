@@ -15,7 +15,7 @@ Last updated: 2026-10-22
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 22 of 22 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01 delivered and verified)
+- **Overall completion status:** 23 of 23 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02 delivered and verified)
 
 ---
 
@@ -495,6 +495,26 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
   - Client and server production builds passed cleanly.
 - **Completion date:** 2026-10-22
 
+### DEF-02 — Participant Portal Defect Resolution (verified)
+
+- **Implementation summary:**
+  - **Root cause 1 (route contract mismatch):** The Participant Portal client called `/api/v1/portal/competitions`, `/api/v1/portal/profile`, `/api/v1/portal/results`, and `/api/v1/portal/team`, but the backend mounted the portal router only at `/api/v1/participant`. Registration could not load competitions, and profile, team, and results requests all returned 404.
+  - **Root cause 2 (results runtime exception):** `getParticipantResults` dereferenced `evaluation.judge._id`, but `Evaluation.find` returned the `judge` field as an `ObjectId`, not a populated document. Any participant with submitted evaluations received HTTP 500 when loading results.
+  - **Root cause 3 (unevaluated rounds counted as zero):** The participant results service added every configured round to the overall-score calculation, including rounds with no submitted evaluations. A participant with only Round 1 evaluated received an incorrect overall score of half of their actual score, inconsistent with the leaderboard calculation.
+  - **Repair:** Mounted the portal router at the documented `/api/v1/portal` path and retained `/api/v1/participant` as a backward-compatible alias. Read the judge identifier directly from the `ObjectId`. Limited overall-score aggregation to rounds backed by submitted evaluations while still rendering pending rounds in the breakdown.
+  - **State handling:** Participant Portal now surfaces results-loading failures with a retry action and displays team-update errors instead of only logging them. Leaderboard now displays backend/authentication errors with a retry action instead of silently showing an empty state.
+  - **Security preserved:** Portal routes remain behind `authenticate` + `requireRole("participant", "admin")`; participant identity is resolved from the JWT user id/email, not request parameters. Submitted evaluations remain the only source for participant results, and judge identities, draft evaluations, and password hashes are not returned.
+- **Files changed:** `server/src/app.ts`, `server/src/services/portal.service.ts`, `server/test/app.test.ts`, `server/test/integration.test.ts`, `client/src/pages/participant/ParticipantPortalPage.tsx`, `client/src/pages/leaderboard/LeaderboardPage.tsx`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts` (server), `npm run typecheck` (server), `npx tsc -p tsconfig.test.json` (server), `npm run build` (server), `npm run build` (client).
+- **Verification results:**
+  - Non-database server suite: **34 tests passed, 0 failed**.
+  - Server typecheck, test typecheck, and production build passed. Client typecheck and production build passed.
+  - Participant HTTP workflow verified against a model-stubbed Express harness: registration `201`, re-login `200`, profile `200`, team update `200`, results `200`, `/participant` alias `200`, leaderboard `200` with real submitted-evaluation score, and unauthenticated profile `401`.
+  - Results aggregation harness verified the judge `ObjectId` fix, two-criterion breakdown, no judge-id/password-hash leakage, and an overall score of `75` derived only from the evaluated Round 1.
+  - Added participant integration coverage for registration, re-login, profile, team update, results, and the route alias. The integration suite was **not executed locally** because no local MongoDB instance was available; it must not be run against Atlas.
+- **Remaining defects:** None identified in the Participant Portal workflow during this phase. Leaderboard APIs remain authenticated by design; anonymous visitors now receive a clear error instead of a misleading empty result.
+- **Completion date:** 2026-10-22
+
 ---
 
 ## D. In-Progress Tasks
@@ -511,8 +531,9 @@ _None. All tracked project milestones are complete._
 | P-11 | Documentation: README content, `docs/` API reference, architecture specs | parallel | **Completed (T-20)** |
 | P-12 | CI tooling & GitHub Actions workflow | parallel | **Completed (T-21)** |
 | DEF-01 | MongoDB Atlas verification, Add Judge & Add Participant defect resolutions | T-19, T-20 | **Completed (T-22)** |
+| DEF-02 | Participant Portal route, results, and error-state defect resolution | T-19, T-22 | **Completed** |
 
-Tracked tasks: 22 completed (T-01…T-22) + 0 pending = 22 → **100% complete**.
+Tracked tasks: 23 completed (T-01…T-22) + 0 pending = 23 → **100% complete**.
 
 ---
 

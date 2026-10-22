@@ -455,6 +455,12 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     assert.equal(jpData.panels.length, 1);
     assert.equal(jpData.panels[0]._id, panel1Id);
 
+    // Administrators cannot use judge-only endpoints
+    const adminJudgePanels = await fetch(`${baseUrl}/api/v1/judge/panels`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(adminJudgePanels.status, 403);
+
     // Judge 1 retrieves participants for assigned panel
     const panelParticipants = await fetch(
       `${baseUrl}/api/v1/judge/panels/${panel1Id}/participants`,

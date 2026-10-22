@@ -189,6 +189,19 @@ export const LoginPage: React.FC = () => {
               Register here
             </Link>
           </div>
+          <div>
+            Evaluating for KARVAAN?{" "}
+            <Link
+              to="/judge/login"
+              style={{
+                color: "var(--color-navy)",
+                fontWeight: 700,
+                textDecoration: "underline",
+              }}
+            >
+              Judge Login
+            </Link>
+          </div>
           <div style={{ fontSize: "11px", color: "var(--color-slate)" }}>
             Judge and admin access is provisioned by the event committee.
           </div>

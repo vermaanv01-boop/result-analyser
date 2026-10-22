@@ -44,9 +44,7 @@ export async function getJudgePanelParticipantsHandler(
       throw ApiError.notFound("Panel not found");
     }
 
-    const isAssigned =
-      req.user!.role === "admin" ||
-      panel.judges.some((j) => j.toString() === req.user!.id);
+    const isAssigned = panel.judges.some((j) => j.toString() === req.user!.id);
 
     if (!isAssigned) {
       throw ApiError.forbidden("Judge is not assigned to this panel");
