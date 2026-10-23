@@ -1,4 +1,4 @@
-# KARVAAN API Reference Specification
+# Venture Craft API Reference Specification
 
 Base Path: `/api/v1`  
 Protocol: HTTP / JSON  
@@ -48,7 +48,7 @@ All error responses strictly follow the standardized envelope:
 Public endpoint to authenticate credentials and issue a signed JWT.
 - **Request Body**:
   ```json
-  { "email": "admin@karvaan.org", "password": "secure_password" }
+  { "email": "admin@venturecraft.org", "password": "secure_password" }
   ```
 - **Response (200)**:
   ```json
@@ -57,7 +57,7 @@ Public endpoint to authenticate credentials and issue a signed JWT.
     "user": {
       "id": "671752b023...",
       "name": "Competition Admin",
-      "email": "admin@karvaan.org",
+      "email": "admin@venturecraft.org",
       "role": "admin",
       "isActive": true
     }

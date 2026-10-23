@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { useAuth } from "../../context/AuthContext";
 
 export const LoginPage: React.FC = () => {
@@ -62,13 +61,30 @@ export const LoginPage: React.FC = () => {
         }}
       >
         <div style={{ marginBottom: "28px" }}>
-          <KARVAANLogo
-            size="lg"
-            showText={true}
-            showTagline={true}
-            variant="dark"
-            className="logo-centered"
-          />
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "28px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "var(--color-navy)",
+              lineHeight: 1.1,
+            }}
+          >
+            Venture Craft
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "12px",
+              letterSpacing: "0.15em",
+              color: "var(--color-gold)",
+              marginTop: "6px",
+              textTransform: "uppercase",
+            }}
+          >
+            Present &bull; Connect &bull; Lead
+          </div>
         </div>
 
         <div
@@ -190,7 +206,7 @@ export const LoginPage: React.FC = () => {
             </Link>
           </div>
           <div>
-            Evaluating for KARVAAN?{" "}
+            Evaluating for Venture Craft?{" "}
             <Link
               to="/judge/login"
               style={{

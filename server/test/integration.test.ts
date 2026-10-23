@@ -74,7 +74,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
     const passwordHash = await hashPassword("AdminSecret123!");
     const adminUser = await User.create({
       name: "Super Admin",
-      email: "admin@karvaan.org",
+      email: "admin@venturecraft.org",
       passwordHash,
       role: "admin",
       isActive: true,
@@ -86,14 +86,14 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "admin@karvaan.org",
+        email: "admin@venturecraft.org",
         password: "AdminSecret123!",
       }),
     });
     assert.equal(loginRes.status, 200);
     const loginData = (await loginRes.json()) as any;
     assert.ok(loginData.token);
-    assert.equal(loginData.user.email, "admin@karvaan.org");
+    assert.equal(loginData.user.email, "admin@venturecraft.org");
     assert.equal(loginData.user.role, "admin");
     adminToken = loginData.token;
 
@@ -102,7 +102,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "admin@karvaan.org",
+        email: "admin@venturecraft.org",
         password: "WrongPassword!",
       }),
     });
@@ -133,7 +133,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
         },
         body: JSON.stringify({
           name: "Judge Smith",
-          email: "judge.smith@karvaan.org",
+          email: "judge.smith@venturecraft.org",
           password: "JudgePassword123!",
           role: "judge",
         }),
@@ -152,7 +152,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
         },
         body: JSON.stringify({
           name: "Judge Doe",
-          email: "judge.doe@karvaan.org",
+          email: "judge.doe@venturecraft.org",
           password: "JudgePassword123!",
           role: "judge",
         }),
@@ -170,7 +170,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "judge.smith@karvaan.org",
+        email: "judge.smith@venturecraft.org",
         password: "JudgePassword123!",
       }),
     });
@@ -183,7 +183,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "judge.doe@karvaan.org",
+        email: "judge.doe@venturecraft.org",
         password: "JudgePassword123!",
       }),
     });
@@ -199,7 +199,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       },
       body: JSON.stringify({
         name: "Unauthorized User",
-        email: "unauth@karvaan.org",
+        email: "unauth@venturecraft.org",
         password: "Password123!",
         role: "judge",
       }),
@@ -227,7 +227,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
         },
         body: JSON.stringify({
           name: "Judge Activation",
-          email: "judge.activate@karvaan.org",
+          email: "judge.activate@venturecraft.org",
           password: "TempPassword123!",
           role: "judge",
         }),
@@ -269,7 +269,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       });
       assert.equal(activateRes.status, 200);
       const actData = (await activateRes.json()) as any;
-      assert.equal(actData.user.email, "judge.activate@karvaan.org");
+      assert.equal(actData.user.email, "judge.activate@venturecraft.org");
 
       // Reuse the same token -> rejected
       const reuseRes2 = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {
@@ -284,12 +284,12 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: "judge.activate@karvaan.org",
+          email: "judge.activate@venturecraft.org",
           password: "NewPass123!",
         }),
       });
       assert.equal(loginRes.status, 200);
-      const loggedInUser = await User.findOne({ email: "judge.activate@karvaan.org" }).select(
+      const loggedInUser = await User.findOne({ email: "judge.activate@venturecraft.org" }).select(
         "+passwordHash",
       );
       assert.ok(loggedInUser?.passwordHash);
@@ -329,7 +329,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       },
       body: JSON.stringify({
         name: "Temp Judge",
-        email: "temp.judge@karvaan.org",
+        email: "temp.judge@venturecraft.org",
         password: "TempPassword123!",
         role: "judge",
       }),
@@ -342,7 +342,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "temp.judge@karvaan.org",
+        email: "temp.judge@venturecraft.org",
         password: "TempPassword123!",
       }),
     });
@@ -356,7 +356,7 @@ describe("Integration: Authentication, RBAC, and Provisioning", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "temp.judge@karvaan.org",
+        email: "temp.judge@venturecraft.org",
         password: "TempPassword123!",
       }),
     });
@@ -387,7 +387,7 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
         Authorization: `Bearer ${adminToken}`,
       },
       body: JSON.stringify({
-        name: "KARVAAN 2026 Annual Hackathon",
+        name: "Venture Craft 2026 Annual Hackathon",
         description: "Premier student technology competition",
       }),
     });

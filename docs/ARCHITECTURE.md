@@ -1,6 +1,6 @@
-# KARVAAN Architectural & Mathematical Specification
+# Venture Craft Architectural & Mathematical Specification
 
-This document details the architectural principles, data flow models, security boundaries, and mathematical formulations governing the KARVAAN evaluation platform.
+This document details the architectural principles, data flow models, security boundaries, and mathematical formulations governing the Venture Craft evaluation platform.
 
 ---
 

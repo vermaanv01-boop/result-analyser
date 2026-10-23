@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import type { PublicCompetition } from "../../types/api";
@@ -137,13 +136,18 @@ export const RegisterPage: React.FC = () => {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <KARVAANLogo
-            size="md"
-            showText={true}
-            showTagline={false}
-            variant="dark"
-            className="logo-centered"
-          />
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "24px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "var(--color-navy)",
+              lineHeight: 1.1,
+            }}
+          >
+            Venture Craft
+          </div>
         </div>
 
         <div

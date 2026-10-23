@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import type {
@@ -144,18 +143,6 @@ export const ParticipantPortalPage: React.FC = () => {
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            right: "-20px",
-            top: "-20px",
-            opacity: 0.08,
-            pointerEvents: "none",
-          }}
-        >
-          <KARVAANLogo size="lg" variant="light" showText={false} />
-        </div>
-
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "20px" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
@@ -968,7 +955,29 @@ export const ParticipantPortalPage: React.FC = () => {
         >
           {/* Printable Header */}
           <div style={{ textAlign: "center", borderBottom: "2px solid var(--color-navy)", paddingBottom: "24px", marginBottom: "28px" }}>
-            <KARVAANLogo size="md" variant="dark" showTagline={true} className="logo-centered" />
+            <div
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "22px",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                color: "var(--color-navy)",
+              }}
+            >
+              Venture Craft
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "11px",
+                letterSpacing: "0.15em",
+                color: "var(--color-gold)",
+                marginTop: "4px",
+                textTransform: "uppercase",
+              }}
+            >
+              Present &bull; Connect &bull; Lead
+            </div>
             <h2
               style={{
                 fontFamily: "var(--font-heading)",
@@ -1134,7 +1143,7 @@ export const ParticipantPortalPage: React.FC = () => {
 
             <div style={{ textAlign: "center", fontSize: "11px", color: "var(--color-slate)" }}>
               <div style={{ fontWeight: 700, color: "var(--color-navy)", letterSpacing: "0.06em", marginBottom: "2px" }}>
-                KARVAAN EVALUATION SYSTEM
+                VENTURE CRAFT EVALUATION SYSTEM
               </div>
               <div>Certified Digital Verification</div>
             </div>

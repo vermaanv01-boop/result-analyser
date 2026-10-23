@@ -36,7 +36,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           fontSize: "18px",
         }}
       >
-        Loading KARVAAN System...
+        Loading Venture Craft System...
       </div>
     );
   }

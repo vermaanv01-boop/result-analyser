@@ -3,9 +3,9 @@ import { connectDatabase, disconnectDatabase } from "../config/database";
 import { User } from "../models/user.model";
 
 async function seedAdmin() {
-  const email = process.env.ADMIN_EMAIL || "admin@karvaan.org";
-  const password = process.env.ADMIN_PASSWORD || "Admin@Karvaan2026!";
-  const name = process.env.ADMIN_NAME || "KARVAAN Administrator";
+  const email = process.env.ADMIN_EMAIL || "admin@venturecraft.org";
+  const password = process.env.ADMIN_PASSWORD || "Admin@VentureCraft2026!";
+  const name = process.env.ADMIN_NAME || "Venture Craft Administrator";
 
   console.log(`[seed] Connecting to database...`);
   await connectDatabase();

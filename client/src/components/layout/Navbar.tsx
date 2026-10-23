@@ -1,7 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { KARVAANLogo } from "../common/KARVAANLogo";
 
 export const Navbar: React.FC = () => {
   const { user, logout, isAdmin, isJudge, isParticipant } = useAuth();
@@ -35,7 +34,18 @@ export const Navbar: React.FC = () => {
     >
       <div style={{ display: "flex", alignItems: "center", gap: "36px" }}>
         <Link to="/" style={{ textDecoration: "none" }}>
-          <KARVAANLogo size="sm" variant="light" showTagline={false} />
+          <span
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "18px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "#FFFFFF",
+              lineHeight: 1.1,
+            }}
+          >
+            Venture Craft
+          </span>
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

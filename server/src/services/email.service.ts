@@ -54,7 +54,7 @@ function getTransporter(): nodemailer.Transporter {
 }
 
 function getFromAddress(): string {
-  return env.SMTP_FROM ?? "KARVAAN <no-reply@karvaan.local>";
+  return env.SMTP_FROM ?? "Venture Craft <no-reply@venturecraft.local>";
 }
 
 function sleep(ms: number): Promise<void> {

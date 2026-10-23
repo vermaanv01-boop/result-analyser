@@ -43,7 +43,7 @@ export async function sendParticipantRegistrationConfirmation(
     `- Login: ${loginLink}\n` +
     `- Participant portal: ${portalLink}\n\n` +
     `If you did not request this registration, please contact the event administrator.\n\n` +
-    `— KARVAAN Team`;
+    `— Venture Craft Team`;
 
   const html =
     `<p>Hello ${escapeHtml(options.participantName)},</p>` +
@@ -56,11 +56,11 @@ export async function sendParticipantRegistrationConfirmation(
     `<p>You can sign in to access the participant portal:</p>` +
     `<p><a href="${escapeAttribute(loginLink)}">Sign in</a> | <a href="${escapeAttribute(portalLink)}">Participant portal</a></p>` +
     `<p>If you did not request this registration, please contact the event administrator.</p>` +
-    `<p>— KARVAAN Team</p>`;
+    `<p>— Venture Craft Team</p>`;
 
   const result = await sendEmailWithRetry({
     to: options.email,
-    subject: `KARVAAN registration confirmed — ${competitionName}`,
+    subject: `Venture Craft registration confirmed — ${competitionName}`,
     text,
     html,
   });
@@ -113,25 +113,25 @@ export async function sendJudgeActivationEmail(options: SendJudgeActivationOptio
 
   const text =
     `Hello ${options.name},\n\n` +
-    `A judge account has been created for you on KARVAAN.\n\n` +
+    `A judge account has been created for you on Venture Craft.\n\n` +
     `To activate your account and set your password, use the link below (single-use, expires in ${env.JUDGE_ACTIVATION_TOKEN_TTL_HOURS ?? 24} hours):\n` +
     `${activationLink}\n\n` +
     `If you did not expect this email, please contact the event administrator.\n\n` +
-    `— KARVAAN Team`;
+    `— Venture Craft Team`;
 
   const html =
     `<p>Hello ${escapeHtml(options.name)},</p>` +
-    `<p>A judge account has been created for you on KARVAAN.</p>` +
+    `<p>A judge account has been created for you on Venture Craft.</p>` +
     `<p>To activate your account and set your password, click the link below (single-use, expires in ${env.JUDGE_ACTIVATION_TOKEN_TTL_HOURS ?? 24} hours):</p>` +
     `<p><a href="${escapeAttribute(activationLink)}">Activate judge account</a></p>` +
     `<p>If the button doesn't work, copy and paste this URL into your browser:</p>` +
     `<p>${escapeHtml(activationLink)}</p>` +
     `<p>If you did not expect this email, please contact the event administrator.</p>` +
-    `<p>— KARVAAN Team</p>`;
+    `<p>— Venture Craft Team</p>`;
 
   const result = await sendEmailWithRetry({
     to: options.email,
-    subject: "KARVAAN judge account activation",
+    subject: "Venture Craft judge account activation",
     text,
     html,
   });

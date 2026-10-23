@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import type {
@@ -295,7 +294,6 @@ export const JudgePortalPage: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <KARVAANLogo size="md" variant="dark" showText={false} />
           <div>
             <h1 style={{ fontSize: "28px", color: "var(--color-navy)", marginBottom: "4px" }}>
               Judge Evaluation Portal

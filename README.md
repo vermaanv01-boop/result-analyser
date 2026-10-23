@@ -1,8 +1,4 @@
-# KARVAAN — Student Evaluation, Ranking & Live Leaderboard System
-
-<p align="center">
-  <img src="client/public/assets/karvaan-logo.png" alt="KARVAAN Peacock Logo" width="140" />
-</p>
+# Venture Craft — Student Evaluation, Ranking & Live Leaderboard System
 
 <p align="center">
   <strong>Present &bull; Connect &bull; Lead</strong><br />
@@ -13,9 +9,9 @@
 
 ## 1. Project Overview
 
-**KARVAAN** is an enterprise-grade competition scoring, participant management, and live leaderboard platform built on a modern TypeScript stack (Node.js, Express, MongoDB, Mongoose, React 18, and Vite).
+**Venture Craft** is an enterprise-grade competition scoring, participant management, and live leaderboard platform built on a modern TypeScript stack (Node.js, Express, MongoDB, Mongoose, React 18, and Vite).
 
-In conventional collegiate hackathons and academic conferences, scoring is typically coordinated via fragmented, error-prone spreadsheets that suffer from formula corruption, lack of evaluation immutability, and vulnerability to accidental data overwrites. KARVAAN replaces manual coordination with a verifiable, multi-judge consensus scoring engine that guarantees:
+In conventional collegiate hackathons and academic conferences, scoring is typically coordinated via fragmented, error-prone spreadsheets that suffer from formula corruption, lack of evaluation immutability, and vulnerability to accidental data overwrites. Venture Craft replaces manual coordination with a verifiable, multi-judge consensus scoring engine that guarantees:
 - **Fairness & Consistency:** Criteria-based evaluation with dynamic derivation and multi-judge arithmetic mean aggregation.
 - **Data Immutability:** Historical parameter snapshots freeze at evaluation time, guaranteeing that subsequent parameter adjustments never tamper with past scores.
 - **Submission Integrity:** A hard lock-in mechanism prevents post-deadline resubmissions or modifications.
@@ -117,13 +113,8 @@ student-ranking-system/
 │   └── workflows/
 │       └── ci.yml               # GitHub Actions CI pipeline (Node 20 + MongoDB 8)
 ├── client/                      # Frontend SPA (React 18 + TypeScript + Vite)
-│   ├── public/
-│   │   └── assets/
-│   │       └── karvaan-logo.png # Original KARVAAN peacock logo asset
 │   ├── src/
-│   │   ├── assets/              # Component branding assets
 │   │   ├── components/
-│   │   │   ├── common/          # Reusable components (KARVAANLogo.tsx)
 │   │   │   └── layout/          # Layout wrappers (Navbar.tsx, ProtectedRoute.tsx)
 │   │   ├── context/             # React Context (AuthContext.tsx)
 │   │   ├── pages/
@@ -136,7 +127,7 @@ student-ranking-system/
 │   │   ├── App.tsx              # Application route tree
 │   │   ├── index.css            # Luxury design tokens, components & print styles
 │   │   └── main.tsx             # DOM mounting entrypoint
-│   ├── index.html               # HTML entry with font preconnects & favicon
+│   ├── index.html               # HTML entry with font preconnects & page title
 │   ├── package.json             # Client scripts and dependencies
 │   ├── tsconfig.json            # Client TypeScript configuration
 │   └── vite.config.ts           # Vite server & proxy configuration (/api -> :3000)
@@ -224,7 +215,7 @@ cp .env.example .env
 | `NODE_ENV` | No | `development` | Environment mode (`development`, `test`, `production`) | `development` |
 | `MONGODB_URI` | **Yes (Prod)** | `mongodb://localhost:27017/student_ranking` | MongoDB connection URI with database name | `mongodb://127.0.0.1:27017/student_ranking_system` |
 | `CLIENT_ORIGIN` | No | `http://localhost:5173` | Allowed browser origin for CORS policy | `http://localhost:5173` |
-| `JWT_SECRET` | **Yes (Prod)** | Internal dev string | Secret key for signing JWTs. **Must be $\ge$ 32 characters in production.** | `development_super_secret_jwt_key_karvaan_2026_min32chars` |
+| `JWT_SECRET` | **Yes (Prod)** | Internal dev string | Secret key for signing JWTs. **Must be $\ge$ 32 characters in production.** | `development_super_secret_jwt_key_venturecraft_2026_min32chars` |
 | `JWT_EXPIRES_IN` | No | `24h` | JWT validity duration (e.g., `24h`, `7d`, `3600s`) | `24h` |
 
 ### Optional Email / Notification Variables
@@ -238,7 +229,7 @@ Email delivery is optional. When SMTP is not configured, the server still persis
 | `SMTP_SECURE` | `false` | Use TLS on connect (set `true` for port 465) |
 | `SMTP_USER` | _(unset)_ | SMTP auth username |
 | `SMTP_PASS` | _(unset)_ | SMTP auth password (never logged) |
-| `SMTP_FROM` | `no-reply@karvaan.org` | From address on outgoing mail |
+| `SMTP_FROM` | `no-reply@venturecraft.org` | From address on outgoing mail |
 | `EMAIL_DELIVERY_RETRIES` | `2` | Additional retry attempts on delivery failure |
 | `EMAIL_DELIVERY_RETRY_DELAY_MS` | `250` | Linear backoff base delay between retries |
 | `APP_PUBLIC_URL` | `http://localhost:5173` | Base URL used to build judge activation links |
@@ -250,9 +241,9 @@ Email delivery is optional. When SMTP is not configured, the server still persis
 
 | Variable | Default | Description |
 |---|---|---|
-| `ADMIN_EMAIL` | `admin@karvaan.org` | Initial administrator login email |
-| `ADMIN_PASSWORD` | `Admin@Karvaan2026!` | Initial administrator login password |
-| `ADMIN_NAME` | `KARVAAN Administrator` | Initial administrator display name |
+| `ADMIN_EMAIL` | `admin@venturecraft.org` | Initial administrator login email |
+| `ADMIN_PASSWORD` | `Admin@VentureCraft2026!` | Initial administrator login password |
+| `ADMIN_NAME` | `Venture Craft Administrator` | Initial administrator display name |
 
 > [!CAUTION]
 > Never commit `.env` files containing real production passwords, connection strings, or JWT secrets to Git. `.env` is ignored by `.gitignore`.
@@ -275,11 +266,11 @@ Ensure your local `mongod` service is started on `mongodb://127.0.0.1:27017`.
 ### Option C: MongoDB Atlas Cloud
 Create a free M0 cluster on [MongoDB Atlas](https://www.mongodb.com/atlas):
 1. **Network Access:** In Atlas Security &rarr; Network Access, add your current IP address (or `0.0.0.0/0` to allow all IP addresses for testing/deployment).
-2. **Database User:** In Database Access, create a database user (e.g., `karvaan_admin`) with `readWrite` role on the `student_ranking` database.
+2. **Database User:** In Database Access, create a database user (e.g., `venturecraft_admin`) with `readWrite` role on the `student_ranking` database.
 3. **Connection String:** Copy the `mongodb+srv://` connection string and specify the database name `/student_ranking`.
 4. Configure in `server/.env`:
 ```env
-MONGODB_URI=mongodb+srv://karvaan_admin:your_secure_password@cluster0.example.mongodb.net/student_ranking?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://venturecraft_admin:your_secure_password@cluster0.example.mongodb.net/student_ranking?retryWrites=true&w=majority
 ```
 
 > [!WARNING]
@@ -367,8 +358,8 @@ npm run seed:admin
 ```
 
 This connects to MongoDB, hashes the password with 10 bcrypt salt rounds, and provisions the initial account:
-- **Email:** `admin@karvaan.org`
-- **Password:** `Admin@Karvaan2026!`
+- **Email:** `admin@venturecraft.org`
+- **Password:** `Admin@VentureCraft2026!`
 - **Role:** `admin`
 
 *(To customize the credentials prior to seeding, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `server/.env` before running).*

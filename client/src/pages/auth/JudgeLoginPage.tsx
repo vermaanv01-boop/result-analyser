@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { useAuth } from "../../context/AuthContext";
 
 export const JudgeLoginPage: React.FC = () => {
@@ -67,7 +66,7 @@ export const JudgeLoginPage: React.FC = () => {
         message.toLowerCase().includes("network")
       ) {
         setError(
-          "Unable to reach the KARVAAN server. Please check your connection and try again.",
+          "Unable to reach the Venture Craft server. Please check your connection and try again.",
         );
       } else {
         setError(message);
@@ -101,13 +100,30 @@ export const JudgeLoginPage: React.FC = () => {
         }}
       >
         <div style={{ marginBottom: "24px" }}>
-          <KARVAANLogo
-            size="lg"
-            showText={true}
-            showTagline={true}
-            variant="dark"
-            className="logo-centered"
-          />
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "28px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "var(--color-navy)",
+              lineHeight: 1.1,
+            }}
+          >
+            Venture Craft
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "12px",
+              letterSpacing: "0.15em",
+              color: "var(--color-gold)",
+              marginTop: "6px",
+              textTransform: "uppercase",
+            }}
+          >
+            Present &bull; Connect &bull; Lead
+          </div>
         </div>
 
         <span
@@ -180,7 +196,7 @@ export const JudgeLoginPage: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="judge@karvaan.org"
+              placeholder="judge@venturecraft.org"
               autoComplete="email"
               required
               autoFocus
@@ -280,7 +296,7 @@ export const JudgeLoginPage: React.FC = () => {
             </Link>
           </div>
           <div style={{ fontSize: "11px", color: "var(--color-slate)" }}>
-            Judge accounts are provisioned by the KARVAAN event committee.
+            Judge accounts are provisioned by the Venture Craft event committee.
           </div>
         </div>
       </div>

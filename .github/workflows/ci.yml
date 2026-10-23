@@ -40,7 +40,7 @@ jobs:
         working-directory: server
         env:
           MONGODB_URI: mongodb://127.0.0.1:27017/ci_test
-          JWT_SECRET: ci_test_secret_key_karvaan_2026_at_least_32_chars_long
+          JWT_SECRET: ci_test_secret_key_venturecraft_2026_at_least_32_chars_long
           NODE_ENV: test
         run: npm test
 

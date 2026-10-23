@@ -17,11 +17,11 @@ async function runVerification() {
   console.log("Ping OK:", ping?.ok === 1);
 
   console.log("\n=== 2. AUTHENTICATION VERIFICATION ===");
-  const adminLogin = await login("admin@karvaan.org", "Admin@Karvaan2026!");
+  const adminLogin = await login("admin@venturecraft.org", "Admin@VentureCraft2026!");
   console.log("Admin logged in successfully:", adminLogin.user.email, "role:", adminLogin.user.role);
 
   console.log("\n=== 3. ADD JUDGE WORKFLOW VERIFICATION ===");
-  const testJudgeEmail = `test.judge.${Date.now()}@karvaan.org`;
+  const testJudgeEmail = `test.judge.${Date.now()}@venturecraft.org`;
   const createdJudge = await provisionUser({
     name: "Dr. Diagnostic Judge",
     email: testJudgeEmail,

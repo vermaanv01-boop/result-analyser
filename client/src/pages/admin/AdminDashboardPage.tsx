@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { KARVAANLogo } from "../../components/common/KARVAANLogo";
 import { JudgeAssignmentSelect } from "../../components/forms/JudgeAssignmentSelect";
 import { api } from "../../services/api";
 import type {
@@ -456,7 +455,30 @@ export const AdminDashboardPage: React.FC = () => {
             borderBottom: "1px solid rgba(228, 218, 201, 0.15)",
           }}
         >
-          <KARVAANLogo size="sm" variant="light" showTagline={true} />
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "20px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "#FFFFFF",
+              lineHeight: 1.1,
+            }}
+          >
+            Venture Craft
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "11px",
+              letterSpacing: "0.15em",
+              color: "var(--color-gold-muted)",
+              marginTop: "4px",
+              textTransform: "uppercase",
+            }}
+          >
+            Present &bull; Connect &bull; Lead
+          </div>
           <div
             style={{
               fontSize: "11px",
@@ -1198,7 +1220,7 @@ export const AdminDashboardPage: React.FC = () => {
                   type="text"
                   value={newCompName}
                   onChange={(e) => setNewCompName(e.target.value)}
-                  placeholder="e.g. KARVAAN 2026 Tech Summit"
+                  placeholder="e.g. Venture Craft 2026 Tech Summit"
                   required
                 />
               </div>

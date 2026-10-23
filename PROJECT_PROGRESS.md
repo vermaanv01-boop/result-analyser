@@ -9,7 +9,7 @@ Last updated: 2026-10-22
 
 ## A. Project Overview
 
-- **Project name:** Student Evaluation, Ranking & Live Leaderboard System (KARVAAN)
+- **Project name:** Student Evaluation, Ranking & Live Leaderboard System (Venture Craft)
 - **Technology stack:**
   - Frontend: React + TypeScript + Vite with a custom CSS design system
   - Backend: Node.js + Express + TypeScript
@@ -442,11 +442,11 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 
 - **Implementation summary:** Delivered the full-stack frontend application adhering to custom luxury design tokens (`--color-ivory`, `--color-gold`, `--color-navy`, `--font-heading: 'Cinzel'`):
   - **Auth & Session Management:** `AuthContext.tsx` with JWT persistence, automatic 401 expiration dispatch, `LoginPage.tsx` with role-based post-login redirects, `ProtectedRoute.tsx` with role checking.
-  - **Navigation & Brand:** `Navbar.tsx` with active link indicators, session badge, logout trigger, and responsive branding; `KARVAANLogo.tsx` displaying the original KARVAAN golden peacock emblem across the Login page, Admin Dashboard, Judge Portal, and Live Leaderboard.
+  - **Navigation & Brand:** `Navbar.tsx` with active link indicators, session badge, logout trigger, and responsive Venture Craft branding; text wordmarks across the Login page, Admin Dashboard, Judge Portal, and Live Leaderboard.
   - **Admin Dashboard (`AdminDashboardPage.tsx`):** Tabbed interface for Competition creation & status management, Round progression (`pending` -> `active` -> `closed`), Panel management with judge assignment, Participant registration & editing, Parameter criteria definitions & versions, Round 2 qualification modal (Top-N, cutoff score, explicit), and real-time administrative progress reporting.
   - **Judge Evaluation Portal (`JudgePortalPage.tsx`):** Panel selector, participant list with real-time status badges (`Pending`, `Draft`, `Final`), active round detection, eligibility enforcement, dynamic criteria scoring with sliders/steppers, live raw & normalized score preview, draft saving, and permanent submission locking with confirmation modal.
   - **Live Leaderboard (`LeaderboardPage.tsx`):** Live auto-refresh polling (every 15s), Overall / Round 1 / Round 2 view tabs, Panel filter, Top-3 luxury podium showcase (Gold, Silver, Bronze), deterministic rankings ("1224" ties), participant score breakdown modal with individual judge scores, and print/export stylesheet.
-- **Files created/modified:** `client/src/App.tsx`, `client/src/main.tsx`, `client/src/index.css`, `client/src/services/api.ts`, `client/src/types/api.ts`, `client/src/context/AuthContext.tsx`, `client/src/components/layout/{Navbar,ProtectedRoute}.tsx`, `client/src/components/common/KARVAANLogo.tsx`, `client/src/pages/auth/LoginPage.tsx`, `client/src/pages/admin/AdminDashboardPage.tsx`, `client/src/pages/judge/JudgePortalPage.tsx`, `client/src/pages/leaderboard/LeaderboardPage.tsx`, `server/src/scripts/seed-admin.ts`.
+- **Files created/modified:** `client/src/App.tsx`, `client/src/main.tsx`, `client/src/index.css`, `client/src/services/api.ts`, `client/src/types/api.ts`, `client/src/context/AuthContext.tsx`, `client/src/components/layout/{Navbar,ProtectedRoute}.tsx`, `client/src/pages/auth/LoginPage.tsx`, `client/src/pages/admin/AdminDashboardPage.tsx`, `client/src/pages/judge/JudgePortalPage.tsx`, `client/src/pages/leaderboard/LeaderboardPage.tsx`, `server/src/scripts/seed-admin.ts`.
 - **Dependencies added:** `react@18.3.1`, `react-dom@18.3.1`, `react-router-dom@6.28.1`, dev: `vite@6.0.7`, `@vitejs/plugin-react@4.3.4`, `typescript@5.7.3`.
 - **Verification commands:** `npm run build` (`tsc && vite build`) in `client/`, `npm run seed:admin` in `server/`.
 - **Verification results:** Clean TypeScript check and production build in 892ms (`dist/index.html`, `dist/assets/*.js`, `dist/assets/*.css`). Admin seed script provisions initial account and exits cleanly.
@@ -470,7 +470,7 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 ### T-22 — MongoDB Atlas Connectivity Verification, Add Judge Defect Resolution, and Add Participant Defect Resolution
 
 - **Implementation summary:**
-  - **Atlas Connectivity Audit & Resolution:** Diagnosed MongoDB Atlas authentication failure (`bad auth: Authentication failed`) caused by URL-encoded `%3C` literal prefix in `<vermaanv01_db_user>` copied from template string and omission of the target database name in `server/.env`. Corrected `MONGODB_URI` to use clean username credentials and target the `/student_ranking` database. Confirmed Mongoose `readyState: 1`, executed administrative ping `{ ok: 1 }`, seeded initial admin (`admin@karvaan.org`), and created automated verification script `server/src/scripts/verify-workflows.ts` (`npm run verify:atlas`).
+  - **Atlas Connectivity Audit & Resolution:** Diagnosed MongoDB Atlas authentication failure (`bad auth: Authentication failed`) caused by URL-encoded `%3C` literal prefix in `<vermaanv01_db_user>` copied from template string and omission of the target database name in `server/.env`. Corrected `MONGODB_URI` to use clean username credentials and target the `/student_ranking` database. Confirmed Mongoose `readyState: 1`, executed administrative ping `{ ok: 1 }`, seeded initial admin (`admin@venturecraft.org`), and created automated verification script `server/src/scripts/verify-workflows.ts` (`npm run verify:atlas`).
   - **Add Judge Workflow Defect Resolution:**
     - Root cause: Network/database errors and validation failures (e.g. password < 6 characters or 409 email conflict) were logged only to main background view behind the modal backdrop, with no error state or loading state inside the modal, making the button appear completely non-responsive. Additionally, judges could not be viewed or listed.
     - Added backend `GET /api/v1/auth/judges` endpoint (`listJudgesHandler` in `auth.controller.ts`, `getJudges` in `auth.service.ts`, routed via `auth.routes.ts` with `authenticate` and `requireRole("admin")`).
@@ -519,7 +519,7 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 
 - **Implementation summary:**
   - Reused the existing `User` model, bcrypt password hashes, `/api/v1/auth/login` endpoint, JWT issuance/verification, `AuthContext`, and `authenticate`/`requireRole` middleware. No duplicate authentication system or password storage was introduced.
-  - Added the public `/judge/login` page with the existing KARVAAN logo, email and password fields, show/hide password control, required-field and email validation, disabled/loading submit state, invalid-credential and network-error messaging, and the existing ivory/gold/navy design palette.
+  - Added the public `/judge/login` page with Venture Craft branding, email and password fields, show/hide password control, required-field and email validation, disabled/loading submit state, invalid-credential and network-error messaging, and the existing ivory/gold/navy design palette.
   - Judge login checks the role returned by the backend after authentication. Non-judge accounts are immediately logged out and told to use the general sign-in page. Successful judges are redirected to `/judge`; `ProtectedRoute` now supports a route-specific login path and role-aware dashboard redirects to prevent loops.
   - Restricted `/judge` to the `judge` role only. Added visible Judge Login links to the public navigation and the general login page. Administrator and participant login behavior remains unchanged.
   - Enforced judge-only authorization on the backend for `/api/v1/judge/panels`, `/api/v1/judge/panels/:id/participants`, and `/api/v1/judge/evaluations` with `requireRole("judge")`. Removed the previous administrator bypass from the panel-participant handler.
