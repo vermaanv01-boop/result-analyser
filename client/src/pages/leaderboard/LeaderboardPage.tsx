@@ -1,15 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
+<<<<<<< Updated upstream
+=======
+import { useAuth } from "../../context/AuthContext";
+>>>>>>> Stashed changes
 import { api } from "../../services/api";
 import type {
-  Competition,
   LeaderboardResult,
   Panel,
+  PublicCompetition,
   RankedLeaderboardEntry,
   RoundIdentifier,
 } from "../../types/api";
 
 export const LeaderboardPage: React.FC = () => {
-  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const { token } = useAuth();
+  const [competitions, setCompetitions] = useState<PublicCompetition[]>([]);
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>("");
   const [selectedRound, setSelectedRound] = useState<"overall" | RoundIdentifier>("overall");
   const [panels, setPanels] = useState<Panel[]>([]);
@@ -36,14 +41,14 @@ export const LeaderboardPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.getCompetitions();
+      const res = await api.getPublicCompetitions();
       const comps = res.competitions || [];
       setCompetitions(comps);
 
       // Prefer active competition, otherwise first one
       const active = comps.find((c) => c.status === "active") || comps[0];
       if (active) {
-        setSelectedCompetitionId(active._id);
+        setSelectedCompetitionId(active.id);
       }
     } catch (err: any) {
       setError(err?.message || "Failed to load competitions.");
@@ -55,8 +60,13 @@ export const LeaderboardPage: React.FC = () => {
   // 2. When competition changes, load panels
   useEffect(() => {
     if (!selectedCompetitionId) return;
+    if (!token) {
+      setPanels([]);
+      setSelectedPanelFilter("all");
+      return;
+    }
     loadPanels(selectedCompetitionId);
-  }, [selectedCompetitionId]);
+  }, [selectedCompetitionId, token]);
 
   const loadPanels = async (compId: string) => {
     try {
@@ -121,7 +131,7 @@ export const LeaderboardPage: React.FC = () => {
   );
 
   const top3 = entries.slice(0, 3);
-  const currentCompetition = competitions.find((c) => c._id === selectedCompetitionId);
+  const currentCompetition = competitions.find((c) => c.id === selectedCompetitionId);
 
   return (
     <div style={{ padding: "32px 24px", maxWidth: "1400px", margin: "0 auto" }}>
@@ -237,7 +247,7 @@ export const LeaderboardPage: React.FC = () => {
               style={{ minWidth: "220px", fontWeight: 600 }}
             >
               {competitions.map((comp) => (
-                <option key={comp._id} value={comp._id}>
+                <option key={comp.id} value={comp.id}>
                   {comp.name} ({comp.status.toUpperCase()})
                 </option>
               ))}

@@ -1257,6 +1257,20 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     const pLbData = (await panelLeaderboard.json()) as any;
     assert.equal(pLbData.leaderboard.length, 2);
 
+    // All leaderboard variants are public per the documented API contract.
+    const publicLeaderboards = await Promise.all([
+      fetch(`${baseUrl}/api/v1/competitions/${competitionId}/leaderboard`),
+      fetch(
+        `${baseUrl}/api/v1/competitions/${competitionId}/leaderboard/round/1`,
+      ),
+      fetch(
+        `${baseUrl}/api/v1/competitions/${competitionId}/leaderboard/panel/${panel1Id}`,
+      ),
+    ]);
+    publicLeaderboards.forEach((response): void => {
+      assert.equal(response.status, 200);
+    });
+
     // Administrative progress report
     const progressRes = await fetch(
       `${baseUrl}/api/v1/competitions/${competitionId}/progress`,

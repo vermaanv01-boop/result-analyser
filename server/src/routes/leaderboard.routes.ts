@@ -4,7 +4,6 @@ import {
   getPanelLeaderboardHandler,
   getRoundLeaderboardHandler,
 } from "../controllers/leaderboard.controller";
-import { authenticate } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import {
   competitionIdParamsSchema,
@@ -13,8 +12,6 @@ import {
 import { panelParamsSchema } from "../validators/panel.validators";
 
 const router = Router({ mergeParams: true });
-
-router.use(authenticate);
 
 router.get(
   "/",

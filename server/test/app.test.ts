@@ -250,6 +250,59 @@ describe("participant portal routing", (): void => {
   });
 });
 
+describe("leaderboard routing", (): void => {
+  const competitionId = "507f1f77bcf86cd799439011";
+
+  test("exposes documented leaderboard routes without authentication", async (): Promise<void> => {
+    const overall = await fetch(
+      `${baseUrl}/api/v1/competitions/not-an-object-id/leaderboard`,
+    );
+    const overallJson = (await overall.json()) as Record<string, unknown>;
+    assert.equal(overall.status, 400);
+    assert.equal(
+      (overallJson["error"] as Record<string, unknown>)["code"],
+      ERROR_CODES.VALIDATION_ERROR,
+    );
+
+    const round = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/leaderboard/round/3`,
+    );
+    const roundJson = (await round.json()) as Record<string, unknown>;
+    assert.equal(round.status, 400);
+    assert.equal(
+      (roundJson["error"] as Record<string, unknown>)["code"],
+      ERROR_CODES.VALIDATION_ERROR,
+    );
+
+    const panel = await fetch(
+      `${baseUrl}/api/v1/competitions/${competitionId}/leaderboard/panel/not-an-object-id`,
+    );
+    const panelJson = (await panel.json()) as Record<string, unknown>;
+    assert.equal(panel.status, 400);
+    assert.equal(
+      (panelJson["error"] as Record<string, unknown>)["code"],
+      ERROR_CODES.VALIDATION_ERROR,
+    );
+  });
+
+  test("keeps the rest of the competition router authenticated", async (): Promise<void> => {
+    const responses = await Promise.all([
+      fetch(`${baseUrl}/api/v1/competitions`),
+      fetch(`${baseUrl}/api/v1/competitions/${competitionId}`),
+      fetch(`${baseUrl}/api/v1/competitions/${competitionId}/panels`),
+      fetch(`${baseUrl}/api/v1/competitions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Unauthorized Competition" }),
+      }),
+    ]);
+
+    responses.forEach((response): void => {
+      assert.equal(response.status, 401);
+    });
+  });
+});
+
 describe("auth email and activation routing", (): void => {
   test("requires a token and password to activate a judge account", async (): Promise<void> => {
     const response = await fetch(`${baseUrl}/api/v1/auth/judge/activate`, {

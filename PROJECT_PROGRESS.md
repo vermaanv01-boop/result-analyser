@@ -3,7 +3,7 @@
 Canonical progress document for the Student Evaluation, Ranking & Live Leaderboard System.
 Updated incrementally during each coding session in which project changes are made.
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
 
 ---
 
@@ -15,7 +15,7 @@ Last updated: 2026-10-22
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 27 of 27 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24, T-25, T-26, T-27 delivered and verified)
+- **Overall completion status:** 28 of 28 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24, T-25, T-26, T-27, T-28 delivered and verified)
 
 ---
 
@@ -512,7 +512,7 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
   - Participant HTTP workflow verified against a model-stubbed Express harness: registration `201`, re-login `200`, profile `200`, team update `200`, results `200`, `/participant` alias `200`, leaderboard `200` with real submitted-evaluation score, and unauthenticated profile `401`.
   - Results aggregation harness verified the judge `ObjectId` fix, two-criterion breakdown, no judge-id/password-hash leakage, and an overall score of `75` derived only from the evaluated Round 1.
   - Added participant integration coverage for registration, re-login, profile, team update, results, and the route alias. The integration suite was **not executed locally** because no local MongoDB instance was available; it must not be run against Atlas.
-- **Remaining defects:** None identified in the Participant Portal workflow during this phase. Leaderboard APIs remain authenticated by design; anonymous visitors now receive a clear error instead of a misleading empty result.
+- **Remaining defects:** None identified in the Participant Portal workflow during this phase. The earlier claim that leaderboard APIs were authenticated by design was incorrect against the documented public contract; the auth-boundary defect is corrected in T-29.
 - **Completion date:** 2026-10-22
 
 ### T-24 — Dedicated Judge Login and Judge Dashboard (verified)
@@ -572,6 +572,37 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Remaining defects:** None identified in the notification scope within the verified environment. Database-backed integration behavior remains unverified locally.
 - **Completion date:** 2026-10-22
 
+### T-28 - Venture Craft Rebrand and Logo Removal (verified)
+
+- **Implementation summary:**
+  - Replaced all user-facing legacy brand references with `Venture Craft` across the client shell, navigation, login/registration screens, admin/judge/participant dashboards, leaderboard, printable scorecard, outgoing email subjects and bodies, API/architecture documentation, README, and this progress journal.
+  - Removed the legacy peacock logo assets from `client/public/assets/` and `client/src/assets/`, deleted the legacy logo component, removed the favicon reference and browser-tab legacy brand title from `client/index.html`, and replaced remaining logo UI with plain text wordmarks.
+  - Updated default seed administrator credentials and notification/test fixtures to the `venturecraft.org` domain. Internal browser storage keys and auth-expiry event names were intentionally preserved to avoid unnecessary internal identifier changes.
+  - No routes, API contracts, database schemas, scoring calculations, evaluations, or leaderboard logic were modified. The untracked local `server/.env` was left untouched so its existing JWT secret and database credentials remain intact.
+- **Files changed:** `.env.example`, `.github/workflows/ci.yml`, `README.md`, `PROJECT_PROGRESS.md`, `client/index.html`, `client/src/components/layout/{Navbar,ProtectedRoute}.tsx`, `client/src/pages/auth/{LoginPage,RegisterPage,JudgeLoginPage}.tsx`, `client/src/pages/admin/AdminDashboardPage.tsx`, `client/src/pages/judge/JudgePortalPage.tsx`, `client/src/pages/leaderboard/LeaderboardPage.tsx`, `client/src/pages/participant/ParticipantPortalPage.tsx`, `docs/API_REFERENCE.md`, `docs/ARCHITECTURE.md`, `server/src/config/env.ts`, `server/src/scripts/{seed-admin,verify-workflows}.ts`, `server/src/services/{email.service,notification.service}.ts`, `server/test/integration.test.ts`. Removed: the two legacy logo PNG assets and the legacy logo component.
+- **Verification commands:** `npm run build` (client), `npm run typecheck` (server), `npm run build` (server), `npx tsc -p tsconfig.test.json` (server), `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts test/panel-assignment.test.ts` (server non-database suite).
+- **Verification results:** Client TypeScript check and production build passed. Server typecheck, test typecheck, and production build passed. Non-database suite: **53 tests passed, 0 failed**. Database-backed integration tests were not run, per the no-destructive-database constraint.
+- **Remaining references:** Only internal browser storage/auth-event identifiers and the untracked local `server/.env` JWT secret retain the legacy token. No user-facing, documentation, or logo references remain.
+- **Completion date:** 2026-10-23
+
+### T-29 - Public Live Leaderboard Authentication Boundary (verified)
+
+- **Symptom:** Anonymous visitors opening the public `/leaderboard` page saw `Leaderboard unavailable. Authorization header is required.` and no standings.
+- **Intended contract:** `docs/API_REFERENCE.md` explicitly documents all three leaderboard GET routes as public with no authentication required. `README.md` describes the leaderboard as live audience engagement projected in the auditorium, and `client/src/App.tsx` registers `/leaderboard` as a public route and as the fallback route.
+- **Root cause 1 (backend auth boundary):** `server/src/routes/competition.routes.ts` applied `router.use(authenticate)` to the entire competition router before mounting the nested leaderboard router, so the public leaderboard routes inherited authentication. `server/src/routes/leaderboard.routes.ts` also applied its own `router.use(authenticate)`.
+- **Root cause 2 (frontend data source):** `LeaderboardPage` loaded the competition selector from the authenticated `GET /api/v1/competitions` endpoint, so the first request failed for anonymous visitors before any leaderboard request was attempted. It also attempted to load panels when no token was present.
+- **Repair:** Mounted `/:competitionId/leaderboard` before the competition router's authentication guard, removed the redundant leaderboard-router guard, switched the page to the existing public `GET /api/v1/portal/competitions` endpoint, and skipped panel-filter loading for anonymous visitors. All other competition, panel, participant, parameter, evaluation, judge, and admin routes remain authenticated.
+- **Public scope:** Only read-only leaderboard GETs are public. Leaderboard responses aggregate submitted evaluations and expose no judge credentials, password hashes, drafts, or admin progress data.
+- **Files changed:** `server/src/routes/competition.routes.ts`, `server/src/routes/leaderboard.routes.ts`, `client/src/pages/leaderboard/LeaderboardPage.tsx`, `server/test/app.test.ts`, `server/test/integration.test.ts`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run typecheck` (server), `npm run build` (server), `npx tsc -p tsconfig.test.json` (server), `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts test/panel-assignment.test.ts` (server non-database suite), `npm run build` (client).
+- **Verification results:**
+  - Non-database server suite: **55 tests passed, 0 failed**.
+  - New routing regression tests prove the three leaderboard routes pass the authentication boundary and fail validation with `400 VALIDATION_ERROR` rather than `401 UNAUTHORIZED`, while `GET /competitions`, `GET /competitions/:id`, `GET /competitions/:id/panels`, and `POST /competitions` remain `401` without a token.
+  - Added integration assertions that all three leaderboard variants return `200` without an `Authorization` header. The database-backed integration suite was **not executed locally**, per the no-destructive-database constraint.
+  - Server typecheck, test typecheck, and production build passed. Client typecheck and production build passed.
+- **Remaining defects:** None identified in the leaderboard authentication boundary. The public panel selector remains hidden for anonymous visitors because panel listings contain judge identities and are intentionally still authenticated; overall and round leaderboards work without login.
+- **Completion date:** 2026-10-23
+
 _None. All tracked project milestones are complete._
 
 ---
@@ -589,8 +620,9 @@ _None. All tracked project milestones are complete._
 | T-25 | Readable judge/panel selectors, panel editing, and assignment integrity | T-19, T-22 | **Completed** |
 | T-26 | Judge evaluation workflow, authorization hardening, and integrity safeguards | T-19, T-22, T-24 | **Completed** |
 | T-27 | Email notifications: participant confirmation and judge activation | T-03, T-19, T-22 | **Completed** |
+| T-28 | Venture Craft rebrand and logo removal | T-19, T-20 | **Completed** |
 
-Tracked tasks: 27 completed (T-01…T-22) + 0 pending = 27 – **100% complete**.
+Tracked tasks: 28 completed (T-01…T-22, T-24…T-28) + 0 pending = 28 – **100% complete**.
 
 ---
 

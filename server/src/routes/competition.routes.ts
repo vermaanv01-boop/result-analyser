@@ -23,12 +23,14 @@ import participantRoutes from "./participant.routes";
 
 const router = Router();
 
+// Live leaderboards are a documented public read-only surface.
+router.use("/:competitionId/leaderboard", leaderboardRoutes);
+
 router.use(authenticate);
 
 router.use("/:competitionId/panels", panelRoutes);
 router.use("/:competitionId/participants", participantRoutes);
 router.use("/:competitionId/parameters", parameterRoutes);
-router.use("/:competitionId/leaderboard", leaderboardRoutes);
 
 router.post(
   "/",
