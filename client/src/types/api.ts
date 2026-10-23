@@ -67,7 +67,8 @@ export interface JudgeAssignedPanel {
         status: CompetitionStatus;
         rounds: CompetitionRound[];
       }
-    | string;
+    | string
+    | null;
   isActive: boolean;
 }
 

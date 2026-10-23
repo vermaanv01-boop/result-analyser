@@ -23,7 +23,11 @@ interface PanelData {
 }
 
 function getCompetitionName(panel: JudgeAssignedPanel): string {
-  return typeof panel.competition === "string" ? "Assigned competition" : panel.competition.name;
+  const { competition } = panel;
+  if (!competition || typeof competition === "string") {
+    return "Assigned competition";
+  }
+  return competition.name || "Assigned competition";
 }
 
 export const JudgePortalPage: React.FC = () => {

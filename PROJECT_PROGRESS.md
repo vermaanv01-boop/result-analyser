@@ -15,7 +15,7 @@ Last updated: 2026-10-23
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 28 of 28 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, T-24, T-25, T-26, T-27, T-28 delivered and verified)
+- **Overall completion status:** 31 of 31 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, and T-24 through T-31 delivered and verified)
 
 ---
 
@@ -603,6 +603,41 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
 - **Remaining defects:** None identified in the leaderboard authentication boundary. The public panel selector remains hidden for anonymous visitors because panel listings contain judge identities and are intentionally still authenticated; overall and round leaderboards work without login.
 - **Completion date:** 2026-10-23
 
+### T-30 - Leaderboard Merge Conflict Resolution (verified)
+
+- **Symptom:** Vite failed to compile `client/src/pages/leaderboard/LeaderboardPage.tsx` with `Unexpected token (2:1)`.
+- **Root cause:** An incomplete synchronization left one unresolved conflict in the import block:
+  - The upstream conflict section contained no import.
+  - The stashed conflict section contained `import { useAuth } from "../../context/AuthContext";`.
+  - The rest of the file already contained the T-29 public leaderboard implementation (`useAuth`, `token`, `PublicCompetition`, `getPublicCompetitions`, and anonymous panel-loading suppression), so the stashed import was required for the merged component to compile and function.
+- **Resolution:** Removed the three conflict markers and retained the `useAuth` import. No other conflict hunks were present. The public leaderboard authorization fix, anonymous visitor support, competition selector, leaderboard views, panel filtering for authenticated users, auto-refresh, search, details modal, and print/export behavior were preserved.
+- **Additional conflict search:** `git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- client server` found no remaining tracked conflict markers. A recursive scan of `client/src`, `client/public`, `server/src`, and `server/test` found none. `git diff --check` is clean.
+- **Files changed:** `client/src/pages/leaderboard/LeaderboardPage.tsx`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run build` (client), `npm run typecheck` (server), `npx tsc -p tsconfig.test.json` (server), `npm run build` (server), `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts test/panel-assignment.test.ts` (server non-database suite).
+- **Verification results:**
+  - Client TypeScript check and Vite production build passed (43 modules transformed).
+  - Server typecheck, test typecheck, and production build passed.
+  - Non-database server suite: **55 tests passed, 0 failed**.
+  - The database-backed integration suite was **not executed locally**, per the no-destructive-database constraint.
+- **Additional conflicts discovered:** None.
+- **Completion date:** 2026-10-23
+
+### T-31 - Judge Portal Null Competition Crash (verified)
+
+- **Symptom:** Opening `/judge` crashed the page with `Cannot read properties of null (reading 'name')` at `client/src/pages/judge/JudgePortalPage.tsx:26:20`.
+- **Root cause:** `JudgeAssignedPanel.competition` was typed as either a populated competition object or a string, but the judge panels endpoint populates `competition` and can produce `null` when a panel holds a dangling competition reference. `getCompetitionName` dereferenced `competition.name` without checking for `null`.
+- **Repair:** Widened `JudgeAssignedPanel.competition` to include `null` and made `getCompetitionName` return the existing `"Assigned competition"` fallback when the reference is missing, unpopulated, or has an empty name.
+- **Preserved behavior:** Panel switching, participant loading and selection, criteria rendering, score calculation, draft saving, final submission, immutable submitted evaluations, and the loading, empty, retryable error, and no-active-round states are unchanged. No backend route, database schema, or scoring logic was modified.
+- **Files changed:** `client/src/types/api.ts`, `client/src/pages/judge/JudgePortalPage.tsx`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run build` (client), `npm run typecheck` (server), `npm run build` (server), `npx tsc -p tsconfig.test.json` (server), `npx tsx --test test/app.test.ts test/scoring.test.ts test/validate.test.ts test/panel-assignment.test.ts` (server non-database suite).
+- **Verification results:**
+  - Client TypeScript check and Vite production build passed (43 modules transformed).
+  - Server typecheck, test typecheck, and production build passed.
+  - Non-database server suite: **55 tests passed, 0 failed**.
+  - The database-backed integration suite was **not executed locally**, per the no-destructive-database constraint.
+- **Known limitation:** A panel whose competition reference is actually missing still cannot load its participant details, because the backend correctly returns `404 Competition not found`. The portal now renders the assignment without crashing instead of masking that server-side data-integrity condition.
+- **Completion date:** 2026-10-23
+
 _None. All tracked project milestones are complete._
 
 ---
@@ -621,8 +656,11 @@ _None. All tracked project milestones are complete._
 | T-26 | Judge evaluation workflow, authorization hardening, and integrity safeguards | T-19, T-22, T-24 | **Completed** |
 | T-27 | Email notifications: participant confirmation and judge activation | T-03, T-19, T-22 | **Completed** |
 | T-28 | Venture Craft rebrand and logo removal | T-19, T-20 | **Completed** |
+| T-29 | Public live leaderboard authentication boundary | T-19, T-28 | **Completed** |
+| T-30 | Leaderboard merge conflict resolution | T-29 | **Completed** |
+| T-31 | Judge Portal null competition crash | T-24, T-29 | **Completed** |
 
-Tracked tasks: 28 completed (T-01…T-22, T-24…T-28) + 0 pending = 28 – **100% complete**.
+Tracked tasks: 31 completed (T-01…T-22, T-24…T-31) + 0 pending = 31 – **100% complete**.
 
 ---
 

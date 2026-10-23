@@ -1,8 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-<<<<<<< Updated upstream
-=======
 import { useAuth } from "../../context/AuthContext";
->>>>>>> Stashed changes
 import { api } from "../../services/api";
 import type {
   LeaderboardResult,
