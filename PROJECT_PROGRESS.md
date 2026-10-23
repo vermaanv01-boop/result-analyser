@@ -15,7 +15,7 @@ Last updated: 2026-10-23
   - Backend: Node.js + Express + TypeScript
   - Database: MongoDB + Mongoose
 - **Current development phase:** Complete full-stack delivery (Authentication, RBAC, domain services, scoring & ranking engine, REST APIs, automated integration test suite, React + TypeScript + Vite frontend portal, documentation, and CI workflows)
-- **Overall completion status:** 31 of 31 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, and T-24 through T-31 delivered and verified)
+- **Overall completion status:** 32 of 32 tracked tasks completed = **100%** (all milestones P-01 through P-12 + DEF-01, DEF-02, and T-24 through T-32 delivered and verified)
 
 ---
 
@@ -636,6 +636,24 @@ Section updated: 2026-10-21 (added `server/src/middleware/error-handler.ts`, `se
   - Non-database server suite: **55 tests passed, 0 failed**.
   - The database-backed integration suite was **not executed locally**, per the no-destructive-database constraint.
 - **Known limitation:** A panel whose competition reference is actually missing still cannot load its participant details, because the backend correctly returns `404 Competition not found`. The portal now renders the assignment without crashing instead of masking that server-side data-integrity condition.
+- **Follow-up:** Browser-level verification in T-32 found a second, independent null reference that still blanked the portal after this repair.
+- **Completion date:** 2026-10-23
+
+### T-32 - Judge Portal Orphaned Evaluation Blank Screen (verified)
+
+- **Symptom:** After T-31, `/judge` still rendered a completely blank page: the root element was present but empty, with no visible error state.
+- **Diagnosis:** Loaded the running Vite app in headless Chrome through the DevTools Protocol using a real active judge session and captured runtime exceptions. The console showed `TypeError: Cannot read properties of null (reading '_id')` inside the `myEvaluations.find(...)` callbacks. A direct authenticated call to `GET /api/v1/judge/evaluations` returned `200` with two evaluations whose `participant` field was `null`.
+- **Root cause:** `Evaluation.participant` was typed as a non-null populated object, but the judge evaluations response can contain orphaned evaluations whose participant document no longer exists. Both the score-prefill lookup and the `existingEvaluation` lookup dereferenced `participant._id` without checking for `null`, so React crashed during render and unmounted the entire application tree. The `competition`, `panel`, and `judge` fields also did not match the populated or raw reference shapes returned by the API.
+- **Repair:** Widened the `Evaluation` reference fields to their real populated-object, string, or `null` shapes. Added an `isEvaluationForParticipant` guard that safely handles missing, populated, and raw-ID participant references, and used it in both evaluation lookups. Orphaned evaluations are now ignored by the portal instead of crashing it.
+- **Preserved behavior:** Assigned-panel listing, panel switching, participant loading and selection, criteria and eligibility rendering, score calculations, draft saving, final submission, immutable submitted evaluations, progress counts, and loading, empty, retryable-error, and no-active-round states are unchanged. No backend route, database record, schema, or scoring rule was modified.
+- **Files changed:** `client/src/types/api.ts`, `client/src/pages/judge/JudgePortalPage.tsx`, `PROJECT_PROGRESS.md`.
+- **Verification commands:** `npm run build` (client); headless Chrome DevTools Protocol runtime check of `http://localhost:5173/judge` against the running Vite client and authenticated API session; server typecheck, test typecheck, production build, and non-database suite rerun after the change.
+- **Verification results:**
+  - Client TypeScript check and Vite production build passed (43 modules transformed).
+  - Headless browser verification rendered the complete Judge Portal with 1 assigned panel, 2 participants, active Round 1, 3 criteria, and the draft/submit controls. No runtime exceptions were emitted.
+  - Server typecheck, test typecheck, and production build passed; non-database suite: **55 tests passed, 0 failed**.
+  - The database-backed integration suite was **not executed locally**, per the no-destructive-database constraint.
+- **Known limitation:** The orphaned evaluation records remain in the database because they reference participants that no longer exist. The portal safely ignores them; cleaning or migrating those records remains a separate data-maintenance task.
 - **Completion date:** 2026-10-23
 
 _None. All tracked project milestones are complete._
@@ -659,8 +677,9 @@ _None. All tracked project milestones are complete._
 | T-29 | Public live leaderboard authentication boundary | T-19, T-28 | **Completed** |
 | T-30 | Leaderboard merge conflict resolution | T-29 | **Completed** |
 | T-31 | Judge Portal null competition crash | T-24, T-29 | **Completed** |
+| T-32 | Judge Portal orphaned evaluation blank screen | T-24, T-31 | **Completed** |
 
-Tracked tasks: 31 completed (T-01…T-22, T-24…T-31) + 0 pending = 31 – **100% complete**.
+Tracked tasks: 32 completed (T-01…T-22, T-24…T-32) + 0 pending = 32 – **100% complete**.
 
 ---
 
