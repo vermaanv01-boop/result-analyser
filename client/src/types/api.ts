@@ -211,10 +211,10 @@ export interface EvaluationCriterion {
 
 export interface Evaluation {
   _id: string;
-  competition: string;
-  participant: { _id: string; name: string; registrationId: string };
-  panel: { _id: string; name: string };
-  judge: { _id: string; name: string; email: string };
+  competition: { _id: string; name: string } | string | null;
+  participant: { _id: string; name: string; registrationId: string } | string | null;
+  panel: { _id: string; name: string } | string | null;
+  judge: { _id: string; name: string; email: string } | string | null;
   round: RoundIdentifier;
   status: "draft" | "submitted";
   criteria: EvaluationCriterion[];

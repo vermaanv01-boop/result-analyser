@@ -30,6 +30,13 @@ function getCompetitionName(panel: JudgeAssignedPanel): string {
   return competition.name || "Assigned competition";
 }
 
+function isEvaluationForParticipant(evaluation: Evaluation, participantId: string): boolean {
+  if (!evaluation.participant) return false;
+  return typeof evaluation.participant === "string"
+    ? evaluation.participant === participantId
+    : evaluation.participant._id === participantId;
+}
+
 export const JudgePortalPage: React.FC = () => {
   const { user } = useAuth();
   const [panels, setPanels] = useState<JudgeAssignedPanel[]>([]);
@@ -133,9 +140,7 @@ export const JudgePortalPage: React.FC = () => {
 
     const currentEval = myEvaluations.find(
       (e) =>
-        (typeof e.participant === "string"
-          ? e.participant === selectedParticipantId
-          : e.participant._id === selectedParticipantId) &&
+        isEvaluationForParticipant(e, selectedParticipantId) &&
         e.round === panelData.activeRound,
     );
 
@@ -164,11 +169,7 @@ export const JudgePortalPage: React.FC = () => {
 
   // Check if evaluation for selected participant is already submitted
   const existingEvaluation = myEvaluations.find(
-    (e) =>
-      (typeof e.participant === "string"
-        ? e.participant === selectedParticipantId
-        : e.participant._id === selectedParticipantId) &&
-      e.round === activeRound,
+    (e) => isEvaluationForParticipant(e, selectedParticipantId) && e.round === activeRound,
   );
 
   const isSubmitted =
