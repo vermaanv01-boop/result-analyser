@@ -150,7 +150,21 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <Link
+              to="/student/login"
+              style={{
+                padding: "6px 12px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#E0E5EC",
+                border: "1px solid rgba(228, 218, 201, 0.3)",
+                borderRadius: "4px",
+                transition: "all 0.15s",
+              }}
+            >
+              Student Login
+            </Link>
             <Link
               to="/judge/login"
               style={{

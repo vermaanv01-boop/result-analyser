@@ -437,19 +437,35 @@ export const RegisterPage: React.FC = () => {
             fontSize: "13px",
             color: "var(--color-navy)",
             textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
           }}
         >
-          Already registered?{" "}
-          <Link
-            to="/login"
-            style={{
-              color: "var(--color-navy)",
-              fontWeight: 700,
-              textDecoration: "underline",
-            }}
-          >
-            Sign in here
-          </Link>
+          <div>
+            Already registered?{" "}
+            <Link
+              to="/student/login"
+              style={{
+                color: "var(--color-navy)",
+                fontWeight: 700,
+                textDecoration: "underline",
+              }}
+            >
+              Student Login
+            </Link>
+            {" | "}
+            <Link
+              to="/login"
+              style={{
+                color: "var(--color-navy)",
+                fontWeight: 700,
+                textDecoration: "underline",
+              }}
+            >
+              Sign in here
+            </Link>
+          </div>
         </div>
       </div>
     </div>

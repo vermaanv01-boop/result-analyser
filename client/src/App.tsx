@@ -7,6 +7,7 @@ import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { JudgeLoginPage } from "./pages/auth/JudgeLoginPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { StudentLoginPage } from "./pages/auth/StudentLoginPage";
 import { JudgePortalPage } from "./pages/judge/JudgePortalPage";
 import { LeaderboardPage } from "./pages/leaderboard/LeaderboardPage";
 import { ParticipantPortalPage } from "./pages/participant/ParticipantPortalPage";
@@ -21,6 +22,7 @@ export const App: React.FC = () => {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/student/login" element={<StudentLoginPage />} />
               <Route path="/judge/login" element={<JudgeLoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
