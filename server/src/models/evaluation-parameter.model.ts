@@ -28,6 +28,7 @@ export interface EvaluationParameter {
   applicableRounds: RoundIdentifier[];
   isActive: boolean;
   configVersion: number;
+  priority: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,6 +105,12 @@ const evaluationParameterDefinition = {
     default: 1,
     validate: positiveIntegerValidator,
   },
+  priority: {
+    type: Number,
+    default: null,
+    min: [1, "priority must be at least 1"],
+    validate: positiveIntegerValidator,
+  },
 } satisfies SchemaDefinition<EvaluationParameter>;
 
 const evaluationParameterSchema = new Schema<EvaluationParameter>(
@@ -141,6 +148,11 @@ evaluationParameterSchema.index(
 evaluationParameterSchema.index(
   { competition: 1, isActive: 1, applicableRounds: 1 },
   { name: "evaluationParameter_competition_isActive_applicableRounds" },
+);
+
+evaluationParameterSchema.index(
+  { competition: 1, priority: 1 },
+  { name: "evaluationParameter_competition_priority" },
 );
 
 export type EvaluationParameterDocument = HydratedDocument<EvaluationParameter>;

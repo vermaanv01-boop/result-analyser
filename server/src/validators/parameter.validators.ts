@@ -17,6 +17,7 @@ export const createParameterSchema = z.object({
     .array(roundIdentifierSchema)
     .min(1, "applicableRounds must contain at least one round"),
   isActive: z.boolean().optional(),
+  priority: z.number().int().positive().nullable().optional(),
 });
 
 export const updateParameterSchema = z.object({
