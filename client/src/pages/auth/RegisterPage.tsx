@@ -100,7 +100,7 @@ export const RegisterPage: React.FC = () => {
       await registerParticipant({
         competitionId,
         name: name.trim(),
-        registrationId: registrationId.trim(),
+        registrationId: registrationId.trim() || undefined,
         email: email.trim(),
         password,
         teamMembers: finalMembers,
@@ -268,14 +268,13 @@ export const RegisterPage: React.FC = () => {
                     marginBottom: "6px",
                   }}
                 >
-                  Registration / Roll ID <span style={{ color: "var(--color-maroon)" }}>*</span>
+                  Registration / Roll ID <span style={{ fontSize: "11px", color: "var(--color-slate)", fontWeight: 400 }}>(Optional - auto-generated)</span>
                 </label>
                 <input
                   type="text"
                   value={registrationId}
                   onChange={(e) => setRegistrationId(e.target.value)}
-                  placeholder="e.g. REG-104 or 2024-CS-042"
-                  required
+                  placeholder="Leave blank to auto-generate"
                 />
               </div>
             </div>

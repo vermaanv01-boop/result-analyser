@@ -101,6 +101,16 @@ export async function findParticipantForUser(
     await participant.save();
   }
 
+  // Handle legacy accounts with missing IDs without creating duplicate accounts
+  if (!participant.registrationId) {
+    try {
+      participant.registrationId = await generateUniqueRegistrationId(participant.competition, "REG");
+      await participant.save();
+    } catch (err) {
+      console.error("Failed to generate registrationId for legacy participant:", err);
+    }
+  }
+
   return participant;
 }
 
