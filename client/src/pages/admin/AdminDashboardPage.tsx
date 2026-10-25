@@ -78,6 +78,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [newParamMax, setNewParamMax] = useState<number>(50);
   const [newParamWeight, setNewParamWeight] = useState<number>(1);
   const [newParamRounds, setNewParamRounds] = useState<RoundIdentifier[]>([1, 2]);
+  const [newParamPriority, setNewParamPriority] = useState<string>("");
 
   const [qualifyMethod, setQualifyMethod] = useState<"topN" | "cutoffScore">("topN");
   const [qualifyTopN, setQualifyTopN] = useState<number>(5);
@@ -354,16 +355,22 @@ export const AdminDashboardPage: React.FC = () => {
     e.preventDefault();
     if (!selectedCompetitionId) return;
     try {
+      const priorityVal = newParamPriority.trim() === "" ? undefined : Number(newParamPriority.trim());
       await api.createParameter(selectedCompetitionId, {
         name: newParamName,
         description: newParamDesc,
         maxMarks: Number(newParamMax),
         weightage: Number(newParamWeight),
         applicableRounds: newParamRounds,
+        priority: priorityVal === undefined || Number.isNaN(priorityVal) ? null : priorityVal,
       });
       notifySuccess(`Evaluation criterion '${newParamName}' created`);
       setNewParamName("");
       setNewParamDesc("");
+      setNewParamMax(50);
+      setNewParamWeight(1);
+      setNewParamRounds([1, 2]);
+      setNewParamPriority("");
       setShowCreateParam(false);
       loadCompetitionData(selectedCompetitionId);
     } catch (err: any) {
@@ -1027,6 +1034,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Criterion Name</th>
+                    <th>Priority</th>
                     <th>Max Marks</th>
                     <th>Weightage</th>
                     <th>Applicable Rounds</th>
@@ -1036,33 +1044,41 @@ export const AdminDashboardPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {parameters.length > 0 ? (
-                    parameters.map((param) => (
-                      <tr key={param._id}>
-                        <td style={{ fontWeight: 600 }}>{param.name}</td>
-                        <td style={{ fontWeight: 700 }}>{param.maxMarks} pts</td>
-                        <td>{param.weightage}x</td>
-                        <td>
-                          {param.applicableRounds.map((r) => (
-                            <span
-                              key={r}
-                              className="badge badge-active"
-                              style={{ marginRight: "4px", fontSize: "11px" }}
-                            >
-                              R{r}
+                    [...parameters]
+                      .sort((a, b) => {
+                        const pa = a.priority ?? 999999;
+                        const pb = b.priority ?? 999999;
+                        if (pa !== pb) return pa - pb;
+                        return a.name.localeCompare(b.name);
+                      })
+                      .map((param) => (
+                        <tr key={param._id}>
+                          <td style={{ fontWeight: 600 }}>{param.name}</td>
+                          <td>{param.priority === null || param.priority === undefined ? "-" : param.priority}</td>
+                          <td style={{ fontWeight: 700 }}>{param.maxMarks} pts</td>
+                          <td>{param.weightage}x</td>
+                          <td>
+                            {param.applicableRounds.map((r) => (
+                              <span
+                                key={r}
+                                className="badge badge-active"
+                                style={{ marginRight: "4px", fontSize: "11px" }}
+                              >
+                                R{r}
+                              </span>
+                            ))}
+                          </td>
+                          <td>v{param.configVersion}</td>
+                          <td>
+                            <span className={`badge badge-${param.isActive ? "active" : "inactive"}`}>
+                              {param.isActive ? "Active" : "Inactive"}
                             </span>
-                          ))}
-                        </td>
-                        <td>v{param.configVersion}</td>
-                        <td>
-                          <span className={`badge badge-${param.isActive ? "active" : "inactive"}`}>
-                            {param.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      ))
                   ) : (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: "center", padding: "24px" }}>
+                      <td colSpan={7} style={{ textAlign: "center", padding: "24px" }}>
                         No evaluation criteria defined yet.
                       </td>
                     </tr>
@@ -1586,7 +1602,7 @@ export const AdminDashboardPage: React.FC = () => {
                   required
                 />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
                     Maximum Marks
@@ -1610,6 +1626,18 @@ export const AdminDashboardPage: React.FC = () => {
                     min={0}
                     step={0.1}
                     required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
+                    Tie-break Priority (1 = highest)
+                  </label>
+                  <input
+                    type="number"
+                    value={newParamPriority}
+                    onChange={(e) => setNewParamPriority(e.target.value)}
+                    min={1}
+                    placeholder="Optional"
                   />
                 </div>
               </div>

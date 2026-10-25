@@ -215,6 +215,14 @@ export function calculateParticipantOverallScore(
   };
 }
 
+export interface CriterionTieBreakInfo {
+  parameterId: string;
+  priority: number;
+  percentage: number;
+  awardedMarks: number;
+  maxMarks: number;
+}
+
 export interface LeaderboardEntryInput {
   participantId: string;
   registrationId: string;
@@ -225,6 +233,7 @@ export interface LeaderboardEntryInput {
   totalScore: number;
   rawTotalMarks: number;
   roundResults: Partial<Record<RoundIdentifier, ParticipantRoundResult>>;
+  criterionTieBreaks?: CriterionTieBreakInfo[] | undefined;
 }
 
 export interface RankedLeaderboardEntry extends LeaderboardEntryInput {
@@ -239,19 +248,36 @@ export function rankLeaderboardEntries(
 ): RankedLeaderboardEntry[] {
   const sorted = [...entries].sort((a, b) => {
     // Primary: totalScore descending
-    if (b.totalScore !== a.totalScore) {
+    if (Math.abs(b.totalScore - a.totalScore) > 1e-9) {
       return b.totalScore - a.totalScore;
+    }
+
+    // Criterion priorities for tie-breaking
+    if (a.criterionTieBreaks && b.criterionTieBreaks && a.criterionTieBreaks.length > 0 && b.criterionTieBreaks.length > 0) {
+      const prioritiesA = [...a.criterionTieBreaks].sort((x, y) => x.priority - y.priority);
+      const prioritiesB = [...b.criterionTieBreaks].sort((x, y) => x.priority - y.priority);
+      const maxLen = Math.min(prioritiesA.length, prioritiesB.length);
+      for (let i = 0; i < maxLen; i++) {
+        const ca = prioritiesA[i]!;
+        const cb = prioritiesB[i]!;
+        if (Math.abs(cb.percentage - ca.percentage) > 1e-9) {
+          return cb.percentage - ca.percentage;
+        }
+        if (Math.abs(cb.awardedMarks - ca.awardedMarks) > 1e-9) {
+          return cb.awardedMarks - ca.awardedMarks;
+        }
+      }
     }
 
     // Tie-break policies
     if (tieBreakPolicy === "round2Priority") {
       const r2A = a.roundResults[2]?.roundScore ?? 0;
       const r2B = b.roundResults[2]?.roundScore ?? 0;
-      if (r2B !== r2A) {
+      if (Math.abs(r2B - r2A) > 1e-9) {
         return r2B - r2A;
       }
     } else if (tieBreakPolicy === "rawMarks") {
-      if (b.rawTotalMarks !== a.rawTotalMarks) {
+      if (Math.abs(b.rawTotalMarks - a.rawTotalMarks) > 1e-9) {
         return b.rawTotalMarks - a.rawTotalMarks;
       }
     }
@@ -271,13 +297,38 @@ export function rankLeaderboardEntries(
     }
 
     const previous = sorted[i - 1]!;
-    const isTied =
-      current.totalScore === previous.totalScore &&
-      (tieBreakPolicy !== "round2Priority" ||
-        (current.roundResults[2]?.roundScore ?? 0) ===
-          (previous.roundResults[2]?.roundScore ?? 0)) &&
-      (tieBreakPolicy !== "rawMarks" ||
-        current.rawTotalMarks === previous.rawTotalMarks);
+    let isTied = Math.abs(current.totalScore - previous.totalScore) <= 1e-9;
+
+    if (isTied && current.criterionTieBreaks && previous.criterionTieBreaks) {
+      const ca = [...current.criterionTieBreaks].sort((x, y) => x.priority - y.priority);
+      const cb = [...previous.criterionTieBreaks].sort((x, y) => x.priority - y.priority);
+      const maxLen = Math.min(ca.length, cb.length);
+      for (let j = 0; j < maxLen; j++) {
+        if (Math.abs(ca[j]!.percentage - cb[j]!.percentage) > 1e-9 || Math.abs(ca[j]!.awardedMarks - cb[j]!.awardedMarks) > 1e-9) {
+          isTied = false;
+          break;
+        }
+      }
+      // if same up to maxLen or no more criteria to differentiate, treat as tied by criteria priorities
+    }
+
+    if (isTied) {
+      if (tieBreakPolicy === "round2Priority") {
+        const r2C = current.roundResults[2]?.roundScore ?? 0;
+        const r2P = previous.roundResults[2]?.roundScore ?? 0;
+        if (Math.abs(r2C - r2P) > 1e-9) {
+          isTied = false;
+        }
+      }
+    }
+
+    if (isTied) {
+      if (tieBreakPolicy === "rawMarks") {
+        if (Math.abs(current.rawTotalMarks - previous.rawTotalMarks) > 1e-9) {
+          isTied = false;
+        }
+      }
+    }
 
     if (isTied) {
       // Shared rank (standard competition ranking: 1, 2, 2, 4...)

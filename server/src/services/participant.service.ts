@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Competition } from "../models/competition.model";
 import { Evaluation } from "../models/evaluation.model";
+import { EvaluationParameter } from "../models/evaluation-parameter.model";
 import { Panel } from "../models/panel.model";
 import {
   Participant,
@@ -12,6 +13,8 @@ import { generateUniqueRegistrationId } from "../utils/registration-id";
 import {
   aggregateParticipantRoundScores,
   rankLeaderboardEntries,
+  type CriterionTieBreakInfo,
+  type LeaderboardEntryInput,
   type RawJudgeEvaluation,
 } from "./scoring.service";
 
@@ -279,9 +282,9 @@ export async function qualifyParticipantsForRound2(
 
     const entries = participants.map((p) => {
       const pId = p._id.toString();
-      const pPanelId = p.panel ? p.panel.toString() : "";
-      const judgeCount = panelJudgeCounts.get(pPanelId) ?? 0;
-      const rawEvals = evalsByParticipant.get(pId) ?? [];
+      const pPanelId = p.panel ? p.panel.toString() : null;
+      const judgeCount = pPanelId ? panelJudgeCounts.get(pPanelId) ?? 0 : 0;
+      const rawEvals = evalsMap.get(pId) ?? [];
       const round1Result = aggregateParticipantRoundScores(
         1,
         rawEvals,
@@ -299,6 +302,7 @@ export async function qualifyParticipantsForRound2(
         totalScore: round1Result.roundScore,
         rawTotalMarks: round1Result.rawAverageMarks,
         roundResults: { 1: round1Result },
+        criterionTieBreaks: buildTieBreaks(rawEvals),
       };
     });
 

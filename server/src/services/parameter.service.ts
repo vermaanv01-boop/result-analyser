@@ -16,6 +16,7 @@ export async function createParameter(
     weightage: number;
     applicableRounds: RoundIdentifier[];
     isActive?: boolean | undefined;
+    priority?: number | null | undefined;
   },
 ): Promise<EvaluationParameterDocument> {
   const competition = await Competition.findById(competitionId);
@@ -23,16 +24,27 @@ export async function createParameter(
     throw ApiError.notFound("Competition not found");
   }
 
+  if (data.priority !== undefined && data.priority !== null) {
+    const existing = await EvaluationParameter.findOne({
+      competition: competition._id,
+      priority: data.priority,
+    });
+    if (existing) {
+      throw ApiError.conflict("Priority must be unique within the evaluation configuration");
+    }
+  }
+
   const parameter = new EvaluationParameter({
     competition: competition._id,
     name: data.name.trim(),
-    description: data.description ? data.description.trim() : null,
-    guidelines: data.guidelines ? data.guidelines.trim() : null,
+    description: data.description ?? null,
+    guidelines: data.guidelines ?? null,
     maxMarks: data.maxMarks,
     weightage: data.weightage,
     applicableRounds: data.applicableRounds,
     isActive: data.isActive ?? true,
     configVersion: competition.parameterConfigVersion,
+    priority: data.priority ?? null,
   });
 
   await parameter.save();
@@ -86,6 +98,7 @@ export async function updateParameter(
     weightage?: number | undefined;
     applicableRounds?: RoundIdentifier[] | undefined;
     isActive?: boolean | undefined;
+    priority?: number | null | undefined;
   },
 ): Promise<EvaluationParameterDocument> {
   const competition = await Competition.findById(competitionId);
@@ -137,6 +150,19 @@ export async function updateParameter(
   }
   if (data.isActive !== undefined) {
     parameter.isActive = data.isActive;
+  }
+  if (data.priority !== undefined) {
+    if (data.priority !== null) {
+      const existing = await EvaluationParameter.findOne({
+        competition: competition._id,
+        priority: data.priority,
+        _id: { $ne: parameter._id },
+      });
+      if (existing) {
+        throw ApiError.conflict("Priority must be unique within the evaluation configuration");
+      }
+    }
+    parameter.priority = data.priority;
   }
 
   await parameter.save();

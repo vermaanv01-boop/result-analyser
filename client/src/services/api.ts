@@ -286,11 +286,13 @@ class ApiService {
     competitionId: string,
     data: {
       name: string;
-      description?: string;
-      guidelines?: string;
+      description?: string | null;
+      guidelines?: string | null;
       maxMarks: number;
       weightage: number;
       applicableRounds: RoundIdentifier[];
+      isActive?: boolean;
+      priority?: number | null;
     },
   ): Promise<{ parameter: EvaluationParameter }> {
     return this.request<{ parameter: EvaluationParameter }>(
@@ -308,7 +310,14 @@ class ApiService {
     data: Partial<
       Pick<
         EvaluationParameter,
-        "name" | "description" | "guidelines" | "maxMarks" | "weightage" | "applicableRounds" | "isActive"
+        | "name"
+        | "description"
+        | "guidelines"
+        | "maxMarks"
+        | "weightage"
+        | "applicableRounds"
+        | "isActive"
+        | "priority"
       >
     >,
   ): Promise<{ parameter: EvaluationParameter }> {

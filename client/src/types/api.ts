@@ -195,6 +195,7 @@ export interface EvaluationParameter {
   applicableRounds: RoundIdentifier[];
   isActive: boolean;
   configVersion: number;
+  priority?: number | null;
   createdAt: string;
   updatedAt: string;
 }
