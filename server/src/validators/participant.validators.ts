@@ -8,7 +8,7 @@ import {
 
 export const createParticipantSchema = z.object({
   name: nonEmptyString(200, "name is required"),
-  registrationId: nonEmptyString(64, "registrationId is required"),
+  registrationId: z.string().trim().min(1).max(64).optional().nullable(),
   email: emailSchema.nullable().optional(),
   panel: objectIdSchema.nullable().optional(),
 });

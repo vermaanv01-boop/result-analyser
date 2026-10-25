@@ -8,6 +8,7 @@ import {
 } from "../models/participant.model";
 import type { RoundIdentifier } from "../types/domain.types";
 import { ApiError } from "../utils/api-error";
+import { generateUniqueRegistrationId } from "../utils/registration-id";
 import {
   aggregateParticipantRoundScores,
   rankLeaderboardEntries,
@@ -18,7 +19,7 @@ export async function createParticipant(
   competitionId: string,
   data: {
     name: string;
-    registrationId: string;
+    registrationId?: string | null | undefined;
     email?: string | null | undefined;
     panel?: string | null | undefined;
   },
@@ -28,16 +29,21 @@ export async function createParticipant(
     throw ApiError.notFound("Competition not found");
   }
 
-  const normalizedRegId = data.registrationId.trim().toUpperCase();
-  const existing = await Participant.findOne({
-    competition: competition._id,
-    registrationId: normalizedRegId,
-  });
+  let normalizedRegId: string;
+  if (data.registrationId && data.registrationId.trim()) {
+    normalizedRegId = data.registrationId.trim().toUpperCase();
+    const existing = await Participant.findOne({
+      competition: competition._id,
+      registrationId: normalizedRegId,
+    });
 
-  if (existing) {
-    throw ApiError.conflict(
-      `Participant with registration ID '${normalizedRegId}' already exists in this competition`,
-    );
+    if (existing) {
+      throw ApiError.conflict(
+        `Participant with registration ID '${normalizedRegId}' already exists in this competition`,
+      );
+    }
+  } else {
+    normalizedRegId = await generateUniqueRegistrationId(competition._id, "REG");
   }
 
   let panelObjectId: Types.ObjectId | null = null;

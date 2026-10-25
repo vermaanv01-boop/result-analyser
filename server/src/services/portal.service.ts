@@ -14,6 +14,7 @@ import {
   type RawJudgeEvaluation,
 } from "./scoring.service";
 import { ApiError } from "../utils/api-error";
+import { generateUniqueRegistrationId } from "../utils/registration-id";
 import type { RoundIdentifier } from "../types/domain.types";
 
 export interface ParticipantProfileDTO {

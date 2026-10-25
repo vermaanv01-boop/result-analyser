@@ -6,6 +6,7 @@ import { Participant, type ParticipantDocument } from "../models/participant.mod
 import { User, type UserRole } from "../models/user.model";
 import type { AuthenticatedUser, AuthTokenPayload } from "../types/auth.types";
 import { ApiError } from "../utils/api-error";
+import { generateUniqueRegistrationId } from "../utils/registration-id";
 import { sendJudgeActivationEmail, sendParticipantRegistrationConfirmation } from "./notification.service";
 
 const SALT_ROUNDS = 10;
@@ -148,7 +149,7 @@ export async function getJudges(): Promise<AuthenticatedUser[]> {
 export interface RegisterParticipantData {
   competitionId: string;
   name: string;
-  registrationId: string;
+  registrationId?: string | null | undefined;
   email: string;
   password: string;
   teamMembers?: string[] | undefined;
@@ -178,19 +179,24 @@ export async function registerParticipant(
     throw ApiError.badRequest("Competition is archived and not accepting registrations");
   }
 
-  const normalizedRegId = data.registrationId.trim().toUpperCase();
   const normalizedEmail = data.email.trim().toLowerCase();
 
-  // Check if registrationId is already used in this competition by another participant
-  const existingReg = await Participant.findOne({
-    competition: competition._id,
-    registrationId: normalizedRegId,
-  });
+  let normalizedRegId: string | undefined;
+  if (data.registrationId && data.registrationId.trim()) {
+    normalizedRegId = data.registrationId.trim().toUpperCase();
+    // Check if registrationId is already used in this competition by another participant
+    const existingReg = await Participant.findOne({
+      competition: competition._id,
+      registrationId: normalizedRegId,
+    });
 
-  if (existingReg && existingReg.email && existingReg.email !== normalizedEmail) {
-    throw ApiError.conflict(
-      `Participant with registration ID '${normalizedRegId}' already exists in this competition`,
-    );
+    if (existingReg && existingReg.email && existingReg.email !== normalizedEmail) {
+      throw ApiError.conflict(
+        `Participant with registration ID '${normalizedRegId}' already exists in this competition`,
+      );
+    }
+  } else {
+    normalizedRegId = await generateUniqueRegistrationId(competition._id, "REG");
   }
 
   // Find or create User account with role 'participant'
@@ -218,6 +224,9 @@ export async function registerParticipant(
   if (existingReg) {
     existingReg.user = user._id;
     existingReg.name = data.name.trim();
+    if (!existingReg.registrationId) {
+      existingReg.registrationId = await generateUniqueRegistrationId(competition._id, "REG");
+    }
     if (data.teamMembers && data.teamMembers.length > 0) {
       existingReg.teamMembers = data.teamMembers.map((m) => m.trim()).filter(Boolean);
     }
@@ -228,7 +237,7 @@ export async function registerParticipant(
       competition: competition._id,
       user: user._id,
       name: data.name.trim(),
-      registrationId: normalizedRegId,
+      registrationId: normalizedRegId!,
       email: normalizedEmail,
       panel: null,
       isActive: true,
