@@ -28,6 +28,7 @@ export const updateParameterSchema = z.object({
   weightage: nonNegativeNumberSchema.optional(),
   applicableRounds: z.array(roundIdentifierSchema).min(1).optional(),
   isActive: z.boolean().optional(),
+  priority: z.number().int().positive().nullable().optional(),
 });
 
 export const parameterParamsSchema = z.object({
