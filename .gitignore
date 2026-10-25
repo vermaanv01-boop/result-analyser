@@ -2,4 +2,12 @@
 
 node_modules/
 dist/
+build/
 .env
+.env.local
+.env.*.local
+*.log
+*.pem
+*.key
+credentials.json
+secrets.json
