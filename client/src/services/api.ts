@@ -216,7 +216,7 @@ class ApiService {
 
   async createParticipant(
     competitionId: string,
-    data: { name: string; registrationId: string; email?: string; panel?: string },
+    data: { name: string; registrationId?: string; email?: string; panel?: string },
   ): Promise<{ participant: Participant }> {
     return this.request<{ participant: Participant }>(
       `/competitions/${competitionId}/participants`,

@@ -165,7 +165,7 @@ export interface PublicCompetition {
 export interface RegisterParticipantPayload {
   competitionId: string;
   name: string;
-  registrationId: string;
+  registrationId?: string;
   email: string;
   password: string;
   teamMembers?: string[];
