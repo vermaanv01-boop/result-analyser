@@ -1477,18 +1477,17 @@ export const AdminDashboardPage: React.FC = () => {
             <form onSubmit={handleCreateParticipant}>
               <div style={{ marginBottom: "12px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
-                  Registration ID
+                  Registration ID <span style={{ fontSize: "11px", color: "var(--color-slate)", fontWeight: 400 }}>(Optional - auto-generated)</span>
                 </label>
                 <input
                   type="text"
                   value={newPartRegId}
                   onChange={(e) => setNewPartRegId(e.target.value)}
-                  placeholder="e.g. KVN-2026-101"
-                  required
+                  placeholder="Leave blank to auto-generate"
                   disabled={submittingParticipant}
                 />
                 <div style={{ fontSize: "11px", color: "var(--color-slate)", marginTop: "4px" }}>
-                  Must be unique within this competition (e.g. KVN-2026-001).
+                  If provided, must be unique within this competition.
                 </div>
               </div>
               <div style={{ marginBottom: "12px" }}>
