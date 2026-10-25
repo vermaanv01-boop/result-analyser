@@ -798,3 +798,13 @@ Recorded only from decisions made in this project's implementation sessions.
 - Added start/stop scripts and docs; updated root .gitignore and README.md.
 - Verification: watcher structure and rules validated.
 
+
+
+## Criteria Priorities for Leaderboard Tie-Breaking (Implemented)
+- Added priority field to EvaluationParameter model/schema and validations; unique per competition when set.
+- Admin UI: assign/reorder priorities (1 = highest), displayed in criteria table.
+- Ranking: sorts by total score desc; ties broken by criteria in priority order (highest priority first), comparing percentage/awarded marks; retains existing tie handling if still tied. Applied server-side to all leaderboard endpoints and qualification ranking.
+- Missing/incomplete evaluations handled without treating as zero by default.
+- Added tests for total score, priority tie-break, successive priorities, complete ties, missing evaluations.
+- Verification: server/client typecheck and builds passed; relevant tests pass.
+
