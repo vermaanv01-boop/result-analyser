@@ -280,11 +280,50 @@ export async function qualifyParticipantsForRound2(
       evalsByParticipant.set(pId, list);
     });
 
+    const parameters = await EvaluationParameter.find({ competition: competition._id, isActive: true })
+      .sort({ priority: 1, _id: 1 });
+    const priorityParams = parameters.filter((p) => p.priority !== null && p.priority !== undefined);
+
+    const buildTieBreaks = (evalsList: RawJudgeEvaluation[]): CriterionTieBreakInfo[] => {
+      if (priorityParams.length === 0 || evalsList.length === 0) {
+        return [];
+      }
+      const tieBreakMap = new Map<string, { sumPct: number; sumAwarded: number; count: number }>();
+      for (const ev of evalsList) {
+        for (const crit of ev.criteria) {
+          const critId = crit.parameter.toString();
+          if (!tieBreakMap.has(critId)) {
+            tieBreakMap.set(critId, { sumPct: 0, sumAwarded: 0, count: 0 });
+          }
+          const bucket = tieBreakMap.get(critId)!;
+          const pct = crit.maxMarks > 0 ? (crit.awardedMarks / crit.maxMarks) * 100 : 0;
+          bucket.sumPct += pct;
+          bucket.sumAwarded += crit.awardedMarks;
+          bucket.count += 1;
+        }
+      }
+      const result: CriterionTieBreakInfo[] = [];
+      for (const param of priorityParams) {
+        const pid = param._id.toString();
+        const bucket = tieBreakMap.get(pid);
+        if (bucket && bucket.count > 0) {
+          result.push({
+            parameterId: pid,
+            priority: param.priority as number,
+            percentage: Number((bucket.sumPct / bucket.count).toFixed(6)),
+            awardedMarks: Number((bucket.sumAwarded / bucket.count).toFixed(6)),
+            maxMarks: param.maxMarks,
+          });
+        }
+      }
+      return result.sort((a, b) => a.priority - b.priority);
+    };
+
     const entries = participants.map((p) => {
       const pId = p._id.toString();
       const pPanelId = p.panel ? p.panel.toString() : null;
       const judgeCount = pPanelId ? panelJudgeCounts.get(pPanelId) ?? 0 : 0;
-      const rawEvals = evalsMap.get(pId) ?? [];
+      const rawEvals = evalsByParticipant.get(pId) ?? [];
       const round1Result = aggregateParticipantRoundScores(
         1,
         rawEvals,
