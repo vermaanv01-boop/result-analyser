@@ -315,10 +315,6 @@ export const AdminDashboardPage: React.FC = () => {
     const trimmedRegId = newPartRegId.trim().toUpperCase();
     const trimmedEmail = newPartEmail.trim().toLowerCase();
 
-    if (!trimmedRegId) {
-      setParticipantModalError("Registration ID is required.");
-      return;
-    }
     if (!trimmedName) {
       setParticipantModalError("Participant or team name is required.");
       return;
@@ -332,11 +328,15 @@ export const AdminDashboardPage: React.FC = () => {
     try {
       await api.createParticipant(selectedCompetitionId, {
         name: trimmedName,
-        registrationId: trimmedRegId,
+        registrationId: trimmedRegId || undefined,
         email: trimmedEmail || undefined,
         panel: newPartPanel || undefined,
       });
-      notifySuccess(`Participant '${trimmedName}' (${trimmedRegId}) registered successfully.`);
+      notifySuccess(
+        trimmedRegId
+          ? `Participant '${trimmedName}' (${trimmedRegId}) registered successfully.`
+          : `Participant '${trimmedName}' registered successfully.`,
+      );
       setNewPartName("");
       setNewPartRegId("");
       setNewPartEmail("");
