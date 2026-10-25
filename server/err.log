@@ -1,1 +1,3 @@
 [error] POST /api/v1/competitions/6adb85fe9ba89a21b3b4cd1e/rounds/2/status -> 400 BAD_REQUEST: Round 1 must be closed before Round 2 can be activated
+[db] MongoDB disconnected (state: disconnected)
+[error] POST /api/v1/auth/login -> 401 UNAUTHORIZED: Invalid email or password
