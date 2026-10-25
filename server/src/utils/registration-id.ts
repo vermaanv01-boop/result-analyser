@@ -6,7 +6,12 @@ function generateRandomSuffix(length: number = 6): string {
   const bytes = randomBytes(length);
   let result = "";
   for (let i = 0; i < length; i++) {
-    result += chars[bytes[i] % chars.length];
+    const byte = bytes[i];
+    if (byte === undefined) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    } else {
+      result += chars[byte % chars.length];
+    }
   }
   return result;
 }

@@ -182,10 +182,11 @@ export async function registerParticipant(
   const normalizedEmail = data.email.trim().toLowerCase();
 
   let normalizedRegId: string | undefined;
+  let existingReg: ParticipantDocument | null = null;
   if (data.registrationId && data.registrationId.trim()) {
     normalizedRegId = data.registrationId.trim().toUpperCase();
     // Check if registrationId is already used in this competition by another participant
-    const existingReg = await Participant.findOne({
+    existingReg = await Participant.findOne({
       competition: competition._id,
       registrationId: normalizedRegId,
     });
