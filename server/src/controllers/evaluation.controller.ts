@@ -1,5 +1,6 @@
 import type { NextFunction, Response } from "express";
 import type { ValidatedRequest } from "../middleware/validate";
+import { getParticipantEvaluationDetails } from "../services/evaluation-details.service";
 import {
   getEvaluationById,
   getEvaluations,
@@ -10,6 +11,7 @@ import { idParamsSchema } from "../validators/common";
 import type { competitionIdParamsSchema } from "../validators/competition.validators";
 import type {
   evaluationQuerySchema,
+  participantEvaluationParamsSchema,
   saveEvaluationSchema,
 } from "../validators/evaluation.validators";
 
@@ -40,6 +42,21 @@ export async function submitEvaluationHandler(
       isSubmit: true,
     });
     res.status(201).json({ evaluation });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getParticipantEvaluationDetailsHandler(
+  req: ValidatedRequest<{ params: typeof participantEvaluationParamsSchema }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const details = await getParticipantEvaluationDetails(
+      req.params.participantId,
+    );
+    res.status(200).json({ details });
   } catch (error) {
     next(error);
   }

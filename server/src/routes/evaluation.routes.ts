@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getEvaluationHandler,
+  getParticipantEvaluationDetailsHandler,
   listEvaluationsHandler,
   saveDraftHandler,
   submitEvaluationHandler,
@@ -10,6 +11,7 @@ import { validate } from "../middleware/validate";
 import { idParamsSchema } from "../validators/common";
 import {
   evaluationQuerySchema,
+  participantEvaluationParamsSchema,
   saveEvaluationSchema,
 } from "../validators/evaluation.validators";
 
@@ -36,6 +38,13 @@ router.get(
   requireRole("admin"),
   validate({ query: evaluationQuerySchema }),
   listEvaluationsHandler,
+);
+
+router.get(
+  "/participant/:participantId",
+  requireRole("admin"),
+  validate({ params: participantEvaluationParamsSchema }),
+  getParticipantEvaluationDetailsHandler,
 );
 
 router.get(

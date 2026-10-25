@@ -225,6 +225,71 @@ export interface Evaluation {
   updatedAt: string;
 }
 
+export interface ParticipantEvaluationConfiguredCriterion {
+  parameterId: string;
+  parameterName: string;
+  maxMarks: number;
+  weightage: number;
+  applicableRounds: RoundIdentifier[];
+  isActive: boolean;
+  configVersion: number;
+  priority: number | null;
+}
+
+export interface ParticipantEvaluationCriterionMark {
+  parameterId: string;
+  parameterName: string;
+  maxMarks: number;
+  weightage: number;
+  awardedMarks: number | null;
+  isEvaluated: boolean;
+  configVersion: number | null;
+  source: "configured" | "snapshot";
+}
+
+export interface ParticipantEvaluationMarks {
+  evaluationId: string;
+  judgeId: string | null;
+  judgeName: string;
+  judgeEmail: string | null;
+  status: "draft" | "submitted";
+  submittedAt: string | null;
+  updatedAt: string | null;
+  criteria: ParticipantEvaluationCriterionMark[];
+  recordedTotalMarks: number;
+  maxPossibleMarks: number;
+  missingCriterionCount: number;
+  isComplete: boolean;
+}
+
+export interface ParticipantEvaluationRoundDetails {
+  round: RoundIdentifier;
+  roundStatus: RoundStatus;
+  configuredCriteria: ParticipantEvaluationConfiguredCriterion[];
+  evaluations: ParticipantEvaluationMarks[];
+  submittedEvaluationCount: number;
+  draftEvaluationCount: number;
+  status: "unevaluated" | "draft_only" | "in_progress" | "complete";
+  submittedTotalMarks: number | null;
+  maxPossibleMarks: number;
+}
+
+export interface ParticipantEvaluationDetails {
+  participant: {
+    id: string;
+    name: string;
+    registrationId: string;
+    panelId: string | null;
+    panelName: string | null;
+  };
+  rounds: ParticipantEvaluationRoundDetails[];
+  overall: {
+    submittedTotalMarks: number | null;
+    maxPossibleMarks: number;
+    evaluatedRounds: RoundIdentifier[];
+  };
+}
+
 export interface ParticipantRoundResult {
   round: RoundIdentifier;
   roundScore: number;

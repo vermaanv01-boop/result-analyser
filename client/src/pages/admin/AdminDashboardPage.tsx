@@ -6,6 +6,7 @@ import type {
   EvaluationParameter,
   Panel,
   Participant,
+  ParticipantEvaluationDetails,
   ProgressReport,
   RoundIdentifier,
   RoundStatus,
@@ -19,6 +20,28 @@ type AdminTab =
   | "parameters"
   | "qualification"
   | "progress";
+
+const evaluationRoundStatusLabels: Record<
+  ParticipantEvaluationDetails["rounds"][number]["status"],
+  string
+> = {
+  unevaluated: "Unevaluated",
+  draft_only: "Draft only",
+  in_progress: "In progress",
+  complete: "Complete",
+};
+
+function formatScore(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+}
+
+function formatMarkPair(awardedMarks: number | null, maxMarks: number): string {
+  if (awardedMarks === null) {
+    return `Not evaluated / ${formatScore(maxMarks)}`;
+  }
+  return `${formatScore(awardedMarks)} / ${formatScore(maxMarks)}`;
+}
 
 export const AdminDashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("competitions");
@@ -53,6 +76,11 @@ export const AdminDashboardPage: React.FC = () => {
   const [submittingParticipant, setSubmittingParticipant] = useState<boolean>(false);
   const [participantModalError, setParticipantModalError] = useState<string | null>(null);
   const [updatingParticipantId, setUpdatingParticipantId] = useState<string | null>(null);
+  const [marksParticipant, setMarksParticipant] = useState<Participant | null>(null);
+  const [evaluationDetails, setEvaluationDetails] =
+    useState<ParticipantEvaluationDetails | null>(null);
+  const [evaluationDetailsLoading, setEvaluationDetailsLoading] = useState<boolean>(false);
+  const [evaluationDetailsError, setEvaluationDetailsError] = useState<string | null>(null);
 
   // Form states
   const [newCompName, setNewCompName] = useState("");
@@ -440,6 +468,30 @@ export const AdminDashboardPage: React.FC = () => {
     } finally {
       setUpdatingParticipantId(null);
     }
+  };
+
+  const openEvaluationDetails = async (participant: Participant) => {
+    setMarksParticipant(participant);
+    setEvaluationDetails(null);
+    setEvaluationDetailsError(null);
+    setEvaluationDetailsLoading(true);
+    try {
+      const response = await api.getParticipantEvaluationDetails(participant._id);
+      setEvaluationDetails(response.details);
+    } catch (err: any) {
+      setEvaluationDetailsError(
+        err.message || "Failed to load parameter-wise marks for this participant.",
+      );
+    } finally {
+      setEvaluationDetailsLoading(false);
+    }
+  };
+
+  const closeEvaluationDetails = () => {
+    setMarksParticipant(null);
+    setEvaluationDetails(null);
+    setEvaluationDetailsError(null);
+    setEvaluationDetailsLoading(false);
   };
 
   return (
@@ -983,9 +1035,27 @@ export const AdminDashboardPage: React.FC = () => {
                             </button>
                           </td>
                           <td>
-                            <span style={{ fontSize: "12px", color: "var(--color-slate)" }}>
-                              {part.isActive ? "Active" : "Deactivated"}
-                            </span>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "10px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <span
+                                style={{ fontSize: "12px", color: "var(--color-slate)" }}
+                              >
+                                {part.isActive ? "Active" : "Deactivated"}
+                              </span>
+                              <button
+                                className="btn btn-secondary"
+                                style={{ padding: "6px 10px", fontSize: "12px" }}
+                                onClick={() => openEvaluationDetails(part)}
+                              >
+                                View Marks
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1748,6 +1818,391 @@ export const AdminDashboardPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PARAMETER-WISE PARTICIPANT MARKS */}
+      {marksParticipant && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: "960px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: "16px",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <h3 style={{ marginBottom: "4px" }}>
+                  Evaluation Marks — {marksParticipant.name}
+                </h3>
+                <div style={{ fontSize: "13px", color: "var(--color-slate)" }}>
+                  {marksParticipant.registrationId}
+                  {evaluationDetails?.participant.panelName
+                    ? ` • ${evaluationDetails.participant.panelName}`
+                    : ""}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeEvaluationDetails}
+              >
+                Close
+              </button>
+            </div>
+
+            {evaluationDetailsLoading && (
+              <div style={{ padding: "24px", textAlign: "center", color: "var(--color-slate)" }}>
+                Loading parameter-wise marks...
+              </div>
+            )}
+
+            {evaluationDetailsError && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: "var(--color-danger-bg)",
+                  color: "var(--color-danger)",
+                  border: "1px solid rgba(142, 46, 46, 0.2)",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "13px",
+                  marginBottom: "16px",
+                }}
+              >
+                {evaluationDetailsError}
+              </div>
+            )}
+
+            {evaluationDetails && (
+              <div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                    gap: "12px",
+                    padding: "16px",
+                    background: "var(--color-surface-muted, #F4F6F8)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: "12px", color: "var(--color-slate)" }}>
+                      Student submitted total
+                    </div>
+                    <div style={{ fontSize: "20px", fontWeight: 700 }}>
+                      {evaluationDetails.overall.submittedTotalMarks === null
+                        ? "Not evaluated"
+                        : formatScore(evaluationDetails.overall.submittedTotalMarks)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "12px", color: "var(--color-slate)" }}>
+                      Maximum possible (evaluated rounds)
+                    </div>
+                    <div style={{ fontSize: "20px", fontWeight: 700 }}>
+                      {evaluationDetails.overall.evaluatedRounds.length > 0
+                        ? formatScore(evaluationDetails.overall.maxPossibleMarks)
+                        : "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "12px", color: "var(--color-slate)" }}>
+                      Evaluated rounds
+                    </div>
+                    <div style={{ fontSize: "20px", fontWeight: 700 }}>
+                      {evaluationDetails.overall.evaluatedRounds.length > 0
+                        ? evaluationDetails.overall.evaluatedRounds
+                            .map((round) => `Round ${round}`)
+                            .join(", ")
+                        : "None"}
+                    </div>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: "12px", color: "var(--color-slate)", marginBottom: "16px" }}>
+                  Totals include submitted evaluations only. Draft marks and unrecorded
+                  criteria are shown below but excluded from the submitted total.
+                </p>
+
+                {evaluationDetails.rounds.map((round) => (
+                  <div
+                    key={round.round}
+                    style={{
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "16px",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      <h4 style={{ fontSize: "16px" }}>Round {round.round}</h4>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            padding: "3px 8px",
+                            borderRadius: "999px",
+                            background: "#EEF2F6",
+                            color: "var(--color-slate)",
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          Round {round.roundStatus}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            padding: "3px 8px",
+                            borderRadius: "999px",
+                            background:
+                              round.status === "complete"
+                                ? "var(--color-success-bg)"
+                                : round.status === "in_progress"
+                                  ? "#FFF4DB"
+                                  : "#EEF2F6",
+                            color:
+                              round.status === "complete"
+                                ? "var(--color-success)"
+                                : round.status === "in_progress"
+                                  ? "#8A5A00"
+                                  : "var(--color-slate)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {evaluationRoundStatusLabels[round.status]}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                        gap: "10px",
+                        fontSize: "13px",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: "var(--color-slate)" }}>Submitted: </span>
+                        <strong>{round.submittedEvaluationCount}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: "var(--color-slate)" }}>Drafts: </span>
+                        <strong>{round.draftEvaluationCount}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: "var(--color-slate)" }}>Configured criteria: </span>
+                        <strong>{round.configuredCriteria.length}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: "var(--color-slate)" }}>Submitted total: </span>
+                        <strong>
+                          {round.submittedTotalMarks === null
+                            ? "Not evaluated"
+                            : formatMarkPair(
+                                round.submittedTotalMarks,
+                                round.maxPossibleMarks,
+                              )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {round.evaluations.length === 0 ? (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "var(--color-slate)",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          No evaluations recorded for this round.
+                        </div>
+                        {round.configuredCriteria.length > 0 && (
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Criterion</th>
+                                <th>Marks</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {round.configuredCriteria.map((criterion) => (
+                                <tr key={criterion.parameterId}>
+                                  <td>
+                                    {criterion.parameterName}
+                                    {criterion.isActive ? "" : " (Inactive)"}
+                                  </td>
+                                  <td>{formatMarkPair(null, criterion.maxMarks)}</td>
+                                  <td>Not evaluated</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    ) : (
+                      round.evaluations.map((evaluation) => (
+                        <div
+                          key={evaluation.evaluationId}
+                          style={{
+                            borderTop: "1px solid var(--color-border)",
+                            paddingTop: "12px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: "10px",
+                              flexWrap: "wrap",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <div style={{ fontWeight: 600 }}>
+                              {evaluation.judgeName}
+                              {evaluation.judgeEmail ? (
+                                <span
+                                  style={{
+                                    marginLeft: "8px",
+                                    fontSize: "12px",
+                                    fontWeight: 400,
+                                    color: "var(--color-slate)",
+                                  }}
+                                >
+                                  {evaluation.judgeEmail}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "3px 8px",
+                                  borderRadius: "999px",
+                                  background:
+                                    evaluation.status === "submitted"
+                                      ? "var(--color-success-bg)"
+                                      : "#FFF4DB",
+                                  color:
+                                    evaluation.status === "submitted"
+                                      ? "var(--color-success)"
+                                      : "#8A5A00",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {evaluation.status === "submitted" ? "Submitted" : "Draft"}
+                              </span>
+                              <span style={{ fontSize: "11px", color: "var(--color-slate)" }}>
+                                {evaluation.submittedAt
+                                  ? new Date(evaluation.submittedAt).toLocaleString()
+                                  : evaluation.updatedAt
+                                    ? `Last saved ${new Date(evaluation.updatedAt).toLocaleString()}`
+                                    : "Not submitted"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Criterion</th>
+                                <th>Marks</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {evaluation.criteria.map((criterion) => (
+                                <tr key={criterion.parameterId}>
+                                  <td>
+                                    {criterion.parameterName}
+                                    {criterion.source === "snapshot" ? (
+                                      <span
+                                        style={{
+                                          marginLeft: "6px",
+                                          fontSize: "11px",
+                                          color: "var(--color-slate)",
+                                        }}
+                                      >
+                                        (snapshot)
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                  <td>
+                                    {formatMarkPair(
+                                      criterion.awardedMarks,
+                                      criterion.maxMarks,
+                                    )}
+                                  </td>
+                                  <td>
+                                    {criterion.isEvaluated ? "Recorded" : "Not evaluated"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: "12px",
+                              flexWrap: "wrap",
+                              marginTop: "8px",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <span>
+                              {evaluation.status === "draft"
+                                ? "Draft recorded total: "
+                                : "Evaluation total: "}
+                              <strong>
+                                {formatMarkPair(
+                                  evaluation.recordedTotalMarks,
+                                  evaluation.maxPossibleMarks,
+                                )}
+                              </strong>
+                            </span>
+                            <span
+                              style={{
+                                color:
+                                  evaluation.missingCriterionCount > 0
+                                    ? "#8A5A00"
+                                    : "var(--color-slate)",
+                              }}
+                            >
+                              {evaluation.missingCriterionCount > 0
+                                ? `${evaluation.missingCriterionCount} criterion/criteria not evaluated`
+                                : "All criteria recorded"}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

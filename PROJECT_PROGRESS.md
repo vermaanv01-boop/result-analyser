@@ -808,3 +808,13 @@ Recorded only from decisions made in this project's implementation sessions.
 - Added tests for total score, priority tie-break, successive priorities, complete ties, missing evaluations.
 - Verification: server/client typecheck and builds passed; relevant tests pass.
 
+
+---
+
+## Parameter-Wise Admin Evaluation Marks (Implemented)
+- Added admin-only `GET /api/v1/evaluations/participant/:participantId` returning dynamic parameter-wise marks per round.
+- Merges current configured criteria with evaluation snapshots; historical snapshot-only criteria stay visible; explicit 0 preserved and missing marks returned as null (rendered "Not evaluated", not 0).
+- Separate recorded/submitted totals and maximum possible marks; drafts and incomplete evaluations labeled and excluded from submitted totals.
+- Added "View Marks" modal to Admin Participants tab showing configured criteria, per-judge criterion marks, judge/status/timestamp, and draft/incomplete/unevaluated states.
+- Added `server/test/evaluation-details.test.ts` (7 tests) covering complete, draft-only, missing criteria, explicit zero, submitted averaging with drafts, snapshot-only, unevaluated, and inactive criteria.
+- Verification: server typecheck/build passed; client tsc/build passed; 67 non-DB tests passed (including 7 new). DB-backed tests not run because local MongoDB is unavailable.

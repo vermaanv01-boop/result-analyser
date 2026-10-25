@@ -21,6 +21,10 @@ export const saveEvaluationSchema = z.object({
     .min(1, "scores must contain at least one criterion"),
 });
 
+export const participantEvaluationParamsSchema = z.object({
+  participantId: objectIdSchema,
+});
+
 export const evaluationQuerySchema = z.object({
   competition: objectIdSchema.optional(),
   panel: objectIdSchema.optional(),

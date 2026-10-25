@@ -7,6 +7,7 @@ import type {
   LeaderboardResult,
   Panel,
   Participant,
+  ParticipantEvaluationDetails,
   ParticipantProfile,
   ParticipantResults,
   ProgressReport,
@@ -355,6 +356,14 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  async getParticipantEvaluationDetails(
+    participantId: string,
+  ): Promise<{ details: ParticipantEvaluationDetails }> {
+    return this.request<{ details: ParticipantEvaluationDetails }>(
+      `/evaluations/participant/${participantId}`,
+    );
   }
 
   // --- Judge Portal Endpoints ---
