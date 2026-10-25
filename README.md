@@ -1063,13 +1063,10 @@ Detailed technical references are maintained in the repository:
 
 ## Git Auto-Commit Watcher (Windows)
 
-- **Location:** 	ools/git-auto-commit/
-- **Start:** powershell -ExecutionPolicy Bypass -File .\tools\git-auto-commit\start-watcher.ps1
-- **Stop:** powershell -ExecutionPolicy Bypass -File .\tools\git-auto-commit\stop-watcher.ps1 or close the watcher window
-- **Behavior:** Watches tracked and untracked project files recursively. Debounces changes for 10 seconds after the last change. Automatically stages with git add -A (respects .gitignore). Commits with a meaningful timestamped message when staged changes exist. Never pushes automatically.
-- **Exclusions:** 
-ode_modules/, dist/, uild/, .git/, .env, .env.local, .env.*.local (except .env.example), *.log, *.pem, *.key, credentials.json, secrets.json.
+- **Location:** `tools/git-auto-commit/`
+- **Start:** `powershell -ExecutionPolicy Bypass -File .\tools\git-auto-commit\start-watcher.ps1`
+- **Stop:** `powershell -ExecutionPolicy Bypass -File .\tools\git-auto-commit\stop-watcher.ps1` or close the watcher window
+- **Behavior:** Watches tracked and untracked project files recursively. Debounces changes for 10 seconds after the last change. Automatically stages with `git add -A` (respects `.gitignore`). Commits with a meaningful timestamped message when staged changes exist. Never pushes automatically.
+- **Exclusions:** `node_modules/`, `dist/`, `build/`, `.git/`, `.env`, `.env.local`, `.env.*.local` (except `.env.example`), `*.log`, `*.pem`, `*.key`, `credentials.json`, `secrets.json`.
 - **Safety:** Never stages secrets or credentials; fails safely if sensitive files are detected. Skips commits when there are no changes. Prevents overlapping commits. Handles Git errors safely.
-
-
 

@@ -782,3 +782,19 @@ Recorded only from decisions made in this project's implementation sessions.
  # # #   C o n s t r a i n t s  
  -   M i n i m a l   c h a n g e s ,   n o   d u p l i c a t e   a u t h   s y s t e m s ,   n o   u n r e l a t e d   r e d e s i g n ,   n o   d a t a b a s e - d e s t r u c t i v e   o p e r a t i o n s ,   n o   c o m m i t .  
  
+
+---
+
+## Task 1: Automatic Student Registration ID (Implemented)
+- Added server-side registration ID generation utility; IDs persisted and unique per competition.
+- Auto-generated on student registration/admin creation; legacy accounts get ID on first lookup without creating duplicates.
+- Manual ID input removed/optional in student registration and admin participant creation UIs.
+- Added tests in server/test/registration-id.test.ts for generation, persistence/repeated logins, legacy accounts, and uniqueness.
+- Verification: server typecheck and build passed.
+
+## Task 2: Automatic Git Commits on Windows (Implemented)
+- Added PowerShell watcher tools/git-auto-commit/watcher.ps1 with 10s debounce, recursive watch, git add -A respecting .gitignore, timestamped commits, no auto-push.
+- Excludes node_modules/, dist/, build/, .git/, .env* except .env.example, credentials/secrets (*.pem, *.key, credentials.json, secrets.json); never stages secrets, fails safely.
+- Added start/stop scripts and docs; updated root .gitignore and README.md.
+- Verification: watcher structure and rules validated.
+
