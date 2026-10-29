@@ -30,6 +30,7 @@ class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = this.getToken();
     const headers: Record<string, string> = {
+      Accept: "application/json",
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
@@ -44,9 +45,15 @@ class ApiService {
     });
 
     let data: any = null;
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
+    const contentType = response.headers.get("content-type") ?? "";
+    const hasJsonBody = contentType.includes("json");
+
+    if (hasJsonBody) {
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("The server returned malformed JSON.");
+      }
     }
 
     if (!response.ok) {
@@ -80,6 +87,12 @@ class ApiService {
       }
 
       throw new Error(errorMessage);
+    }
+
+    if (!hasJsonBody || data === null) {
+      throw new Error(
+        "The API returned a non-JSON response. Verify that the production API URL or proxy is configured correctly.",
+      );
     }
 
     return data as T;

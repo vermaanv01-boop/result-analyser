@@ -39,15 +39,28 @@ export const LeaderboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
       const res = await api.getPublicCompetitions();
-      const comps = res.competitions || [];
+
+      if (!res || !Array.isArray(res.competitions)) {
+        throw new Error("The competitions response was invalid. Please try again.");
+      }
+
+      const comps = res.competitions;
       setCompetitions(comps);
 
       // Prefer active competition, otherwise first one
       const active = comps.find((c) => c.status === "active") || comps[0];
       if (active) {
         setSelectedCompetitionId(active.id);
+      } else {
+        setSelectedCompetitionId("");
+        setLeaderboardData(null);
+        setPanels([]);
       }
     } catch (err: any) {
+      setCompetitions([]);
+      setSelectedCompetitionId("");
+      setLeaderboardData(null);
+      setPanels([]);
       setError(err?.message || "Failed to load competitions.");
     } finally {
       setLoading(false);
@@ -68,10 +81,17 @@ export const LeaderboardPage: React.FC = () => {
   const loadPanels = async (compId: string) => {
     try {
       const res = await api.getPanels(compId);
-      setPanels(res.panels || []);
+
+      if (!res || !Array.isArray(res.panels)) {
+        throw new Error("The panels response was invalid.");
+      }
+
+      setPanels(res.panels);
       setSelectedPanelFilter("all");
     } catch (err) {
       console.error("Failed to load panels for competition:", err);
+      setPanels([]);
+      setSelectedPanelFilter("all");
     }
   };
 
@@ -80,7 +100,7 @@ export const LeaderboardPage: React.FC = () => {
     if (!selectedCompetitionId) return;
     try {
       setError(null);
-      let data: LeaderboardResult;
+      let data: LeaderboardResult | null = null;
       if (selectedPanelFilter !== "all") {
         data = await api.getPanelLeaderboard(selectedCompetitionId, selectedPanelFilter);
       } else if (selectedRound === "overall") {
@@ -88,6 +108,11 @@ export const LeaderboardPage: React.FC = () => {
       } else {
         data = await api.getRoundLeaderboard(selectedCompetitionId, selectedRound);
       }
+
+      if (!data || !Array.isArray(data.leaderboard)) {
+        throw new Error("The leaderboard response was invalid. Please try again.");
+      }
+
       setLeaderboardData(data);
       setLastRefreshedAt(new Date());
     } catch (err: any) {
@@ -120,7 +145,10 @@ export const LeaderboardPage: React.FC = () => {
   };
 
   // Filter entries by search query
-  const entries: RankedLeaderboardEntry[] = (leaderboardData?.leaderboard || []).filter(
+  const leaderboardEntries = Array.isArray(leaderboardData?.leaderboard)
+    ? leaderboardData.leaderboard
+    : [];
+  const entries: RankedLeaderboardEntry[] = leaderboardEntries.filter(
     (e) =>
       e.participantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       e.registrationId.toLowerCase().includes(searchQuery.toLowerCase()) ||
