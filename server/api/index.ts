@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { createApp } from "../src/app";
 import { connectDatabase } from "../src/config/database";
 import { describeError } from "../src/utils/safe-log";
@@ -20,24 +20,12 @@ function ensureDatabase(): Promise<unknown> {
   return databaseReady;
 }
 
-function sendServiceUnavailable(res: Response): void {
-  res.status(503).json({
-    error: {
-      status: 503,
-      code: "SERVICE_UNAVAILABLE",
-      message: "Database unavailable",
-    },
-  });
-}
-
 function requiresDatabase(path: string): boolean {
   return path.replace(/\/+$/, "") !== "/api/v1/health/live";
 }
 
-export default async function handler(
-  req: Request,
-  res: Response,
-): Promise<void> {
+// Database initialization middleware for serverless invocations
+app.use(async (req: Request, res: Response, next: NextFunction) => {
   if (requiresDatabase(req.path)) {
     try {
       await ensureDatabase();
@@ -45,10 +33,18 @@ export default async function handler(
       console.error(
         `[vercel] Database connection failed for ${req.method} ${req.path}: ${describeError(error)}`,
       );
-      sendServiceUnavailable(res);
+      res.status(503).json({
+        error: {
+          status: 503,
+          code: "SERVICE_UNAVAILABLE",
+          message: "Database unavailable",
+        },
+      });
       return;
     }
   }
+  next();
+});
 
-  app(req, res);
-}
+export default app;
+
