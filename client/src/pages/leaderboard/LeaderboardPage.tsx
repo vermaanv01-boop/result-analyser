@@ -160,7 +160,7 @@ export const LeaderboardPage: React.FC = () => {
   const currentCompetition = competitions.find((c) => c.id === selectedCompetitionId);
 
   return (
-    <div style={{ padding: "32px 24px", maxWidth: "1400px", margin: "0 auto" }}>
+    <div className="responsive-page-container">
       {/* Page Title & Live Pulse Header */}
       <div
         className="no-print"
@@ -174,8 +174,9 @@ export const LeaderboardPage: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <VentureCraftLogo variant="emblem" height={44} />
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px", flexWrap: "wrap" }}>
               <h1 style={{ fontSize: "28px", color: "var(--color-navy)", margin: 0 }}>
                 Live Competition Leaderboard
               </h1>
@@ -424,7 +425,7 @@ export const LeaderboardPage: React.FC = () => {
           {/* Top 3 Podium Showcase (Only in Overall or All Panels view) */}
           {selectedPanelFilter === "all" && top3.length >= 2 && !searchQuery && (
             <div
-              className="no-print"
+              className="no-print podium-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: top3.length >= 3 ? "1fr 1.15fr 1fr" : "1fr 1fr",
