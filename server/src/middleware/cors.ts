@@ -19,8 +19,21 @@ function isLoopbackOrigin(origin: string): boolean {
   }
 }
 
+const KNOWN_ALLOWED_ORIGINS = new Set([
+  "https://venture-craft-leaderboard.netlify.app",
+]);
+
+function normalizeOrigin(origin: string): string {
+  return origin.trim().replace(/\/+$/, "");
+}
+
 function isAllowedOrigin(origin: string): boolean {
-  if (origin === env.CLIENT_ORIGIN) {
+  const normalized = normalizeOrigin(origin);
+  if (normalized === normalizeOrigin(env.CLIENT_ORIGIN)) {
+    return true;
+  }
+
+  if (KNOWN_ALLOWED_ORIGINS.has(normalized)) {
     return true;
   }
 

@@ -20,7 +20,36 @@ import type {
   UserRole,
 } from "../types/api";
 
-const API_BASE = "/api/v1";
+// Resolve API base URL with production override support (e.g. VITE_API_BASE_URL or VITE_API_URL).
+// Preserves /api/v1 prefix without duplicating it. Defaults to relative /api/v1 for local dev proxy.
+const resolveApiBase = (): string => {
+  const envUrl = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    ""
+  ).trim();
+
+  if (!envUrl) {
+    return "/api/v1";
+  }
+
+  // Strip trailing slashes
+  const cleanUrl = envUrl.replace(/\/+$/, "");
+
+  // If the provided base URL already ends with /api/v1, use as is
+  if (cleanUrl.endsWith("/api/v1")) {
+    return cleanUrl;
+  }
+  // If provided with /api (without v1), append /v1
+  if (cleanUrl.endsWith("/api")) {
+    return `${cleanUrl}/v1`;
+  }
+  // Otherwise append the standard /api/v1 prefix
+  return `${cleanUrl}/api/v1`;
+};
+
+const API_BASE = resolveApiBase();
+
 
 class ApiService {
   private getToken(): string | null {
