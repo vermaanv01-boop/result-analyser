@@ -209,6 +209,7 @@ export const ParticipantPortalPage: React.FC = () => {
                 )}
               </div>
             </div>
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
