@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -60,15 +61,17 @@ export const LoginPage: React.FC = () => {
           textAlign: "center",
         }}
       >
-        <div style={{ marginBottom: "28px" }}>
+        <div style={{ marginBottom: "24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <VentureCraftLogo variant="full" height={80} style={{ marginBottom: "12px" } as any} />
           <div
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: "28px",
+              fontSize: "26px",
               fontWeight: 700,
-              letterSpacing: "0.1em",
+              letterSpacing: "0.08em",
               color: "var(--color-navy)",
               lineHeight: 1.1,
+              marginTop: "10px",
             }}
           >
             Venture Craft
@@ -79,11 +82,11 @@ export const LoginPage: React.FC = () => {
               fontSize: "12px",
               letterSpacing: "0.15em",
               color: "var(--color-gold)",
-              marginTop: "6px",
+              marginTop: "4px",
               textTransform: "uppercase",
             }}
           >
-            Present &bull; Connect &bull; Lead
+            Think &bull; Adapt &bull; Innovate
           </div>
         </div>
 
