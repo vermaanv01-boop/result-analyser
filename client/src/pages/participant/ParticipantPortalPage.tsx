@@ -128,14 +128,14 @@ export const ParticipantPortalPage: React.FC = () => {
   const round2Eligibility = profile?.eligibility?.find((e) => e.round === 2);
 
   return (
-    <div style={{ maxWidth: "1140px", margin: "0 auto", padding: "28px 20px 60px" }}>
+    <div className="responsive-page-container" style={{ maxWidth: "1140px", margin: "0 auto" }}>
       {/* Top Banner / Hero */}
       <div
         className="no-print card"
         style={{
           background: "linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)",
           color: "#FFFFFF",
-          padding: "28px 32px",
+          padding: "24px 28px",
           borderRadius: "var(--radius-md)",
           border: "1px solid rgba(181, 154, 101, 0.4)",
           boxShadow: "var(--shadow-md)",
@@ -145,23 +145,25 @@ export const ParticipantPortalPage: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "20px" }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-              <span
-                style={{
-                  background: "rgba(181, 154, 101, 0.2)",
-                  color: "var(--color-gold)",
-                  border: "1px solid rgba(181, 154, 101, 0.4)",
-                  padding: "2px 10px",
-                  borderRadius: "12px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Participant Portal
-              </span>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
+            <VentureCraftLogo variant="emblem" height={52} />
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    background: "rgba(181, 154, 101, 0.2)",
+                    color: "var(--color-gold)",
+                    border: "1px solid rgba(181, 154, 101, 0.4)",
+                    padding: "2px 10px",
+                    borderRadius: "12px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Participant Portal
+                </span>
               <span
                 style={{
                   background: "rgba(255, 255, 255, 0.12)",
