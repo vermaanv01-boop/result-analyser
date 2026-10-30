@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import type { PublicCompetition } from "../../types/api";
+import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 
 export const RegisterPage: React.FC = () => {
   const [competitions, setCompetitions] = useState<PublicCompetition[]>([]);
