@@ -584,29 +584,31 @@ export const AdminDashboardPage: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: "32px 40px", overflowY: "auto" }}>
+      <main className="admin-main" style={{ flex: 1, padding: "32px 36px", overflowY: "auto", minWidth: 0 }}>
         {/* Top Competition Bar */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "28px",
+            marginBottom: "24px",
             background: "#FFFFFF",
             padding: "16px 20px",
             borderRadius: "var(--radius-md)",
             border: "1px solid var(--color-border)",
             boxShadow: "var(--shadow-sm)",
+            flexWrap: "wrap",
+            gap: "14px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-navy)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", minWidth: 0 }}>
+            <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-navy)", whiteSpace: "nowrap" }}>
               Active Competition:
             </label>
             <select
               value={selectedCompetitionId}
               onChange={(e) => setSelectedCompetitionId(e.target.value)}
-              style={{ width: "320px", fontWeight: 600 }}
+              style={{ minWidth: "220px", maxWidth: "100%", fontWeight: 600 }}
             >
               {competitions.map((comp) => (
                 <option key={comp._id} value={comp._id}>
