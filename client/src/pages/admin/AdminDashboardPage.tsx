@@ -496,9 +496,10 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "calc(100vh - 68px)" }}>
+    <div className="admin-layout" style={{ display: "flex", minHeight: "calc(100vh - 68px)", width: "100%" }}>
       {/* Sidebar Navigation */}
       <aside
+        className="admin-sidebar"
         style={{
           width: "260px",
           background: "var(--color-navy)",
@@ -511,49 +512,43 @@ export const AdminDashboardPage: React.FC = () => {
       >
         <div
           style={{
-            padding: "24px 20px",
+            padding: "20px 18px",
             borderBottom: "1px solid rgba(228, 218, 201, 0.15)",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
           }}
         >
-          <div
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "20px",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              color: "#FFFFFF",
-              lineHeight: 1.1,
-            }}
-          >
-            Venture Craft
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "11px",
-              letterSpacing: "0.15em",
-              color: "var(--color-gold-muted)",
-              marginTop: "4px",
-              textTransform: "uppercase",
-            }}
-          >
-            Present &bull; Connect &bull; Lead
-          </div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "var(--color-gold)",
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              marginTop: "12px",
-              fontWeight: 600,
-            }}
-          >
-            Administration Console
+          <VentureCraftLogo variant="emblem" height={38} />
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "17px",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                color: "#FFFFFF",
+                lineHeight: 1.1,
+              }}
+            >
+              Venture Craft
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                color: "var(--color-gold)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginTop: "3px",
+                fontWeight: 600,
+              }}
+            >
+              Admin Console
+            </div>
           </div>
         </div>
 
-        <nav style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+        <nav className="admin-sidebar-nav" style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
           {[
             { id: "competitions", label: "Competitions & Rounds" },
             { id: "panels", label: "Panels & Judges" },
