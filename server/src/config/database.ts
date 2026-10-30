@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
+import { describeError } from "../utils/safe-log";
 import { env } from "./env";
+
+const CONNECTION_OPTIONS = {
+  serverSelectionTimeoutMS: 10000,
+  connectTimeoutMS: 10000,
+  maxPoolSize: 10,
+  minPoolSize: 0,
+} as const;
 
 const CONNECTION_STATES: Record<string, string> = {
   0: "disconnected",
@@ -43,7 +51,7 @@ function attachConnectionListeners(): void {
   });
 
   connection.on("error", (error: Error) => {
-    console.error(`[db] MongoDB connection error: ${error.message}`);
+    console.error(`[db] MongoDB connection error: ${describeError(error)}`);
   });
 }
 
@@ -58,12 +66,15 @@ export function connectDatabase(): Promise<typeof mongoose> {
 
   attachConnectionListeners();
 
-  connectionPromise = mongoose.connect(env.MONGODB_URI).catch((error: unknown) => {
-    connectionPromise = null;
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[db] Failed to connect to MongoDB: ${message}`);
-    throw error;
-  });
+  console.log(`[db] Connecting to MongoDB (${describeConnectionString()})`);
+
+  connectionPromise = mongoose
+    .connect(env.MONGODB_URI, CONNECTION_OPTIONS)
+    .catch((error: unknown) => {
+      connectionPromise = null;
+      console.error(`[db] Failed to connect to MongoDB: ${describeError(error)}`);
+      throw error;
+    });
 
   return connectionPromise;
 }

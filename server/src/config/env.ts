@@ -32,6 +32,7 @@ if (!parsed.success) {
   const issues = parsed.error.issues
     .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
     .join("\n");
+  console.error(`[env] Invalid environment configuration:\n${issues}`);
   throw new Error(`Invalid environment configuration:\n${issues}`);
 }
 

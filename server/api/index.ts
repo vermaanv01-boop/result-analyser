@@ -1,8 +1,11 @@
 import type { Request, Response } from "express";
 import { createApp } from "../src/app";
 import { connectDatabase } from "../src/config/database";
+import { describeError } from "../src/utils/safe-log";
 
+console.log("[vercel] Initializing API function");
 const app = createApp();
+console.log("[vercel] Express app initialized");
 
 let databaseReady: Promise<unknown> | null = null;
 
@@ -27,16 +30,24 @@ function sendServiceUnavailable(res: Response): void {
   });
 }
 
+function requiresDatabase(path: string): boolean {
+  return path.replace(/\/+$/, "") !== "/api/v1/health/live";
+}
+
 export default async function handler(
   req: Request,
   res: Response,
 ): Promise<void> {
-  try {
-    await ensureDatabase();
-  } catch {
-    console.error("[vercel] Database connection failed");
-    sendServiceUnavailable(res);
-    return;
+  if (requiresDatabase(req.path)) {
+    try {
+      await ensureDatabase();
+    } catch (error) {
+      console.error(
+        `[vercel] Database connection failed for ${req.method} ${req.path}: ${describeError(error)}`,
+      );
+      sendServiceUnavailable(res);
+      return;
+    }
   }
 
   app(req, res);
