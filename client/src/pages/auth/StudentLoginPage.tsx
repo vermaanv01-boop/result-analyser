@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 
 export const StudentLoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
