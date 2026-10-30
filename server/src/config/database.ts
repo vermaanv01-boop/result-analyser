@@ -1,10 +1,21 @@
+import dns from "dns";
 import mongoose from "mongoose";
 import { describeError } from "../utils/safe-log";
 import { env } from "./env";
 
+// In serverless / cloud container environments (e.g. AWS Lambda / Vercel),
+// default container DNS can fail or timeout when resolving mongodb+srv DNS SRV records.
+// Explicitly configure public resolvers.
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
+} catch {
+  // If platform prevents setServers, continue with default resolvers
+}
+
 const CONNECTION_OPTIONS = {
   serverSelectionTimeoutMS: 10000,
   connectTimeoutMS: 10000,
+  bufferCommands: false,
   maxPoolSize: 10,
   minPoolSize: 0,
 } as const;
