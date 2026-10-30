@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { JudgeAssignmentSelect } from "../../components/forms/JudgeAssignmentSelect";
+import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 import { api } from "../../services/api";
 import type {
   Competition,
