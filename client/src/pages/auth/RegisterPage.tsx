@@ -136,18 +136,32 @@ export const RegisterPage: React.FC = () => {
           boxShadow: "var(--shadow-md)",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+        <div style={{ textAlign: "center", marginBottom: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <VentureCraftLogo variant="full" height={76} style={{ marginBottom: "10px" } as any} />
           <div
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: "24px",
+              fontSize: "26px",
               fontWeight: 700,
-              letterSpacing: "0.1em",
+              letterSpacing: "0.08em",
               color: "var(--color-navy)",
               lineHeight: 1.1,
+              marginTop: "8px",
             }}
           >
             Venture Craft
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "12px",
+              letterSpacing: "0.15em",
+              color: "var(--color-gold)",
+              marginTop: "4px",
+              textTransform: "uppercase",
+            }}
+          >
+            Think &bull; Adapt &bull; Innovate
           </div>
         </div>
 
