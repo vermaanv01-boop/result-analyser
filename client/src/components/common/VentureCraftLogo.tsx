@@ -10,6 +10,7 @@ interface VentureCraftLogoProps {
   className?: string;
   to?: string;
   showTagline?: boolean;
+  style?: React.CSSProperties;
 }
 
 export const VentureCraftLogo: React.FC<VentureCraftLogoProps> = ({
@@ -19,6 +20,7 @@ export const VentureCraftLogo: React.FC<VentureCraftLogoProps> = ({
   className = "",
   to,
   showTagline = true,
+  style,
 }) => {
   const content = (
     <div
@@ -28,6 +30,7 @@ export const VentureCraftLogo: React.FC<VentureCraftLogoProps> = ({
         alignItems: "center",
         justifyContent: "center",
         lineHeight: 1,
+        ...style,
       }}
     >
       {variant === "emblem" ? (
