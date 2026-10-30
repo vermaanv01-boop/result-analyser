@@ -472,13 +472,14 @@ tr:hover td {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(22, 31, 43, 0.6);
-  backdrop-filter: blur(2px);
+  background: rgba(22, 31, 43, 0.65);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 16px;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -487,10 +488,193 @@ tr:hover td {
   border-radius: var(--radius-md);
   width: 100%;
   max-width: 600px;
-  max-height: 90vh;
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   padding: 24px;
+  margin: auto;
+}
+
+/* Venture Craft Official Logo Component Styles */
+.vc-logo-container {
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+
+.vc-logo-full,
+.vc-logo-emblem {
+  display: block;
+  object-fit: contain;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.vc-logo-mobile-only {
+  display: none !important;
+}
+
+.vc-logo-desktop-only {
+  display: block !important;
+}
+
+/* Comprehensive Responsive Utility Classes & Layouts */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.responsive-page-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+/* Mobile-adapted tables with controlled scroll */
+.table-container {
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Breakpoint: <= 1024px (Tablets & small laptops) */
+@media (max-width: 1024px) {
+  .responsive-page-container {
+    padding: 20px 16px;
+  }
+
+  .admin-layout {
+    flex-direction: column !important;
+  }
+
+  .admin-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 2px solid var(--color-gold) !important;
+  }
+
+  .admin-sidebar-nav {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding: 12px !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-sidebar-nav button {
+    flex-shrink: 0 !important;
+  }
+
+  .admin-main {
+    padding: 20px 16px !important;
+  }
+}
+
+/* Breakpoint: <= 768px (Tablets / Phablets / Large Phones) */
+@media (max-width: 768px) {
+  .vc-logo-mobile-only {
+    display: block !important;
+  }
+
+  .vc-logo-desktop-only {
+    display: none !important;
+  }
+
+  h1 {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+  }
+
+  h2 {
+    font-size: 18px !important;
+    line-height: 1.3 !important;
+  }
+
+  .card {
+    padding: 16px !important;
+  }
+
+  .modal-content {
+    padding: 18px 16px !important;
+    max-height: calc(100vh - 20px) !important;
+  }
+
+  .podium-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    align-items: stretch !important;
+  }
+
+  /* Form and button adjustments */
+  .btn {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+
+  /* Navbar mobile toggle */
+  .navbar-desktop-nav {
+    display: none !important;
+  }
+
+  .navbar-mobile-toggle {
+    display: flex !important;
+  }
+
+  /* Ensure long names and registration IDs do not blow out containers */
+  td, th {
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .truncate-mobile {
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Breakpoint: <= 430px (Standard / Small Mobile - 430px, 390px, 375px, 320px) */
+@media (max-width: 430px) {
+  .responsive-page-container {
+    padding: 16px 12px !important;
+  }
+
+  h1 {
+    font-size: 20px !important;
+  }
+
+  .card {
+    padding: 14px 12px !important;
+    border-radius: var(--radius-sm) !important;
+  }
+
+  .modal-backdrop {
+    padding: 8px !important;
+  }
+
+  .modal-content {
+    padding: 16px 12px !important;
+    border-radius: var(--radius-sm) !important;
+  }
+
+  .btn {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  td, th {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .judge-stat-card {
+    padding: 14px 12px !important;
+  }
+
+  .judge-stat-value {
+    font-size: 24px !important;
+  }
 }
 
 @media print {
@@ -511,3 +695,4 @@ tr:hover td {
     -webkit-print-color-adjust: exact;
   }
 }
+
