@@ -284,8 +284,7 @@ export const JudgePortalPage: React.FC = () => {
 
   return (
     <div
-      className="judge-page"
-      style={{ padding: "32px 24px", maxWidth: "1400px", margin: "0 auto" }}
+      className="judge-page responsive-page-container"
     >
       {/* Page Header */}
       <div
@@ -300,6 +299,7 @@ export const JudgePortalPage: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <VentureCraftLogo variant="emblem" height={44} />
           <div>
             <h1 style={{ fontSize: "28px", color: "var(--color-navy)", marginBottom: "4px" }}>
               Judge Evaluation Portal
