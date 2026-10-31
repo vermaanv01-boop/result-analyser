@@ -1,4 +1,4 @@
-import { strict as assert } from "node:assert";
+﻿import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
 import { rankLeaderboardEntries } from "../src/services/scoring.service";
 
@@ -31,8 +31,8 @@ describe("Criterion priority tie-breaking", () => {
       },
     ];
     const ranked = rankLeaderboardEntries(entries);
-    assert.equal(ranked[0].participantId, "2");
-    assert.equal(ranked[1].participantId, "1");
+    assert.equal(ranked[0]!.participantId, "2");
+    assert.equal(ranked[1]!.participantId, "1");
   });
 
   test("tie on total score broken by highest priority criterion", () => {
@@ -63,10 +63,10 @@ describe("Criterion priority tie-breaking", () => {
       },
     ];
     const ranked = rankLeaderboardEntries(entries);
-    assert.equal(ranked[0].participantId, "2");
-    assert.equal(ranked[1].participantId, "1");
-    assert.equal(ranked[0].rank, 1);
-    assert.equal(ranked[1].rank, 2);
+    assert.equal(ranked[0]!.participantId, "2");
+    assert.equal(ranked[1]!.participantId, "1");
+    assert.equal(ranked[0]!.rank, 1);
+    assert.equal(ranked[1]!.rank, 2);
   });
 
   test("successive priority comparisons", () => {
@@ -103,8 +103,8 @@ describe("Criterion priority tie-breaking", () => {
       },
     ];
     const ranked = rankLeaderboardEntries(entries);
-    assert.equal(ranked[0].participantId, "2");
-    assert.equal(ranked[1].participantId, "1");
+    assert.equal(ranked[0]!.participantId, "2");
+    assert.equal(ranked[1]!.participantId, "1");
   });
 
   test("complete ties retain standard tie handling", () => {
@@ -139,7 +139,7 @@ describe("Criterion priority tie-breaking", () => {
       },
     ];
     const ranked = rankLeaderboardEntries(entries);
-    assert.equal(ranked[0].rank, ranked[1].rank);
+    assert.equal(ranked[0]!.rank, ranked[1]!.rank);
   });
 
   test("missing evaluations handled consistently", () => {
@@ -170,6 +170,7 @@ describe("Criterion priority tie-breaking", () => {
       },
     ];
     const ranked = rankLeaderboardEntries(entries);
-    assert.equal(ranked[0].rank, ranked[1].rank);
+    assert.equal(ranked[0]!.rank, ranked[1]!.rank);
   });
 });
+

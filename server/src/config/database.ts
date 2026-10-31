@@ -30,6 +30,7 @@ const CONNECTION_STATES: Record<string, string> = {
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 let listenersAttached = false;
+let hasConnected = false;
 
 function describeConnectionString(): string {
   try {
@@ -49,10 +50,17 @@ function attachConnectionListeners(): void {
   const connection = mongoose.connection;
 
   connection.on("connected", () => {
+    hasConnected = true;
     console.log(`[db] MongoDB connected (${describeConnectionString()})`);
   });
 
   connection.on("disconnected", () => {
+    // A previously resolved connection promise must not be reused after the
+    // connection drops, otherwise the next request would assume it is still
+    // connected while Mongoose is actually reconnecting.
+    if (hasConnected) {
+      connectionPromise = null;
+    }
     const state = CONNECTION_STATES[connection.readyState] ?? "unknown";
     console.warn(`[db] MongoDB disconnected (state: ${state})`);
   });
@@ -70,7 +78,54 @@ export function getDatabaseState(): string {
   return CONNECTION_STATES[mongoose.connection.readyState] ?? "unknown";
 }
 
+function waitForConnected(): Promise<typeof mongoose> {
+  const connection = mongoose.connection;
+
+  return new Promise<typeof mongoose>((resolve, reject) => {
+    function cleanup(): void {
+      connection.off("connected", onConnected);
+      connection.off("error", onError);
+      connection.off("disconnected", onDisconnected);
+    }
+
+    function onConnected(): void {
+      cleanup();
+      resolve(mongoose);
+    }
+
+    function onError(error: Error): void {
+      cleanup();
+      reject(error);
+    }
+
+    function onDisconnected(): void {
+      cleanup();
+      reject(new Error("MongoDB disconnected before the connection completed"));
+    }
+
+    connection.once("connected", onConnected);
+    connection.once("error", onError);
+    connection.once("disconnected", onDisconnected);
+
+    if (connection.readyState === 1) {
+      cleanup();
+      resolve(mongoose);
+    }
+  });
+}
+
 export function connectDatabase(): Promise<typeof mongoose> {
+  const readyState = mongoose.connection.readyState;
+
+  if (readyState === 1) {
+    return Promise.resolve(mongoose);
+  }
+
+  if (readyState === 2) {
+    // Mongoose is already connecting (including automatic reconnects).
+    return waitForConnected();
+  }
+
   if (connectionPromise) {
     return connectionPromise;
   }

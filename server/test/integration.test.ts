@@ -412,6 +412,25 @@ describe("Integration: Competition, Panel, Participant, Parameter, Evaluation & 
     assert.equal(invalidRoundRes.status, 400);
   });
 
+  test("lists competitions with the expected response structure", async () => {
+    const res = await fetch(`${baseUrl}/api/v1/competitions`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(res.status, 200);
+
+    const data = (await res.json()) as any;
+    assert.ok(Array.isArray(data.competitions));
+    const competition = data.competitions.find(
+      (item: any) => item._id === competitionId,
+    );
+    assert.ok(competition);
+    assert.equal(competition.name, "Venture Craft 2026 Annual Hackathon");
+    assert.equal(competition.status, "draft");
+    assert.equal(Array.isArray(competition.rounds), true);
+    assert.equal(competition.rounds.length, 2);
+    assert.ok(competition.scoringPolicy);
+  });
+
   test("creates evaluation parameters and increments configuration versioning", async () => {
     // Parameter 1: Technical Depth (maxMarks 40, weightage 1)
     const p1Res = await fetch(
