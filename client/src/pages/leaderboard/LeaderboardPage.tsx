@@ -208,7 +208,7 @@ export const LeaderboardPage: React.FC = () => {
             </span>
           </div>
           <p style={{ color: "var(--color-slate)", fontSize: "14px" }}>
-            Real-time standardized scores, multi-judge aggregation, and deterministic standings.
+            Think • Adapt • Innovate
           </p>
         </div>
       </div>
