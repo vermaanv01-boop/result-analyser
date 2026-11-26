@@ -62,7 +62,6 @@ export const AdminDashboardPage: React.FC = () => {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   // Modals state
-  const [showCreateComp, setShowCreateComp] = useState(false);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
   const [showCreateJudge, setShowCreateJudge] = useState(false);
   const [showCreateParticipant, setShowCreateParticipant] = useState(false);
@@ -84,9 +83,6 @@ export const AdminDashboardPage: React.FC = () => {
   const [evaluationDetailsError, setEvaluationDetailsError] = useState<string | null>(null);
 
   // Form states
-  const [newCompName, setNewCompName] = useState("");
-  const [newCompDesc, setNewCompDesc] = useState("");
-
   const [editingPanel, setEditingPanel] = useState<Panel | null>(null);
   const [newPanelName, setNewPanelName] = useState("");
   const [newPanelDesc, setNewPanelDesc] = useState("");
@@ -228,21 +224,6 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // Creation Handlers
-  const handleCreateCompetition = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await api.createCompetition({ name: newCompName, description: newCompDesc });
-      notifySuccess(`Competition '${res.competition.name}' created successfully`);
-      setNewCompName("");
-      setNewCompDesc("");
-      setShowCreateComp(false);
-      await loadCompetitions();
-      setSelectedCompetitionId(res.competition._id);
-    } catch (err: any) {
-      setActionError(err.message);
-    }
-  };
-
   const handleCreateJudge = async (e: React.FormEvent) => {
     e.preventDefault();
     setJudgeModalError(null);
@@ -337,7 +318,7 @@ export const AdminDashboardPage: React.FC = () => {
     setParticipantModalError(null);
 
     if (!selectedCompetitionId) {
-      setParticipantModalError("No active competition selected. Please create or select a competition first.");
+      setParticipantModalError("Event data is unavailable.");
       return;
     }
 
@@ -550,7 +531,7 @@ export const AdminDashboardPage: React.FC = () => {
 
         <nav className="admin-sidebar-nav" style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
           {[
-            { id: "competitions", label: "Competitions & Rounds" },
+            { id: "competitions", label: "Rounds" },
             { id: "panels", label: "Panels & Judges" },
             { id: "participants", label: "Participants" },
             { id: "parameters", label: "Evaluation Criteria" },
@@ -585,7 +566,6 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="admin-main" style={{ flex: 1, padding: "32px 36px", overflowY: "auto", minWidth: 0 }}>
-        {/* Top Competition Bar */}
         <div
           style={{
             display: "flex",
@@ -602,20 +582,9 @@ export const AdminDashboardPage: React.FC = () => {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", minWidth: 0 }}>
-            <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-navy)", whiteSpace: "nowrap" }}>
-              Active Competition:
-            </label>
-            <select
-              value={selectedCompetitionId}
-              onChange={(e) => setSelectedCompetitionId(e.target.value)}
-              style={{ minWidth: "220px", maxWidth: "100%", fontWeight: 600 }}
-            >
-              {competitions.map((comp) => (
-                <option key={comp._id} value={comp._id}>
-                  {comp.name} ({comp.status.toUpperCase()})
-                </option>
-              ))}
-            </select>
+            <strong style={{ fontSize: "13px", color: "var(--color-navy)" }}>
+              Event: {selectedCompetition?.name || (loading ? "Loading..." : "Unavailable")}
+            </strong>
           </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
@@ -627,12 +596,6 @@ export const AdminDashboardPage: React.FC = () => {
               }}
             >
               + Add Judge
-            </button>
-            <button
-              className="btn btn-gold"
-              onClick={() => setShowCreateComp(true)}
-            >
-              + New Competition
             </button>
           </div>
         </div>
@@ -674,7 +637,7 @@ export const AdminDashboardPage: React.FC = () => {
           <div>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={{ fontSize: "22px", marginBottom: "6px" }}>
-                Competition & Round Lifecycles
+                Round Lifecycles
               </h2>
               <p style={{ color: "var(--color-slate)", fontSize: "14px" }}>
                 Manage rounds sequentially. Round 2 requires Round 1 closure before starting.
@@ -729,7 +692,7 @@ export const AdminDashboardPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="card">No competition selected. Create one above to begin.</div>
+              <div className="card">Round data is loading or unavailable.</div>
             )}
           </div>
         )}
@@ -944,7 +907,7 @@ export const AdminDashboardPage: React.FC = () => {
                 className="btn btn-gold"
                 onClick={() => {
                   if (!selectedCompetitionId) {
-                    setActionError("Please select or create an active competition first.");
+                    setActionError("Event data is still loading.");
                     return;
                   }
                   setParticipantModalError(null);
@@ -1284,53 +1247,11 @@ export const AdminDashboardPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="card">Progress data loading or no active competition.</div>
+              <div className="card">Progress data is loading or unavailable.</div>
             )}
           </div>
         )}
       </main>
-
-      {/* MODAL: CREATE COMPETITION */}
-      {showCreateComp && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
-            <h3 style={{ marginBottom: "16px" }}>Create New Competition</h3>
-            <form onSubmit={handleCreateCompetition}>
-              <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
-                  Competition Name
-                </label>
-                <input
-                  type="text"
-                  value={newCompName}
-                  onChange={(e) => setNewCompName(e.target.value)}
-                  placeholder="e.g. Venture Craft 2026 Tech Summit"
-                  required
-                />
-              </div>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
-                  Description
-                </label>
-                <textarea
-                  value={newCompDesc}
-                  onChange={(e) => setNewCompDesc(e.target.value)}
-                  rows={3}
-                  placeholder="Brief competition description..."
-                />
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateComp(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-gold">
-                  Create Competition
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* MODAL: PROVISION JUDGE */}
       {showCreateJudge && (

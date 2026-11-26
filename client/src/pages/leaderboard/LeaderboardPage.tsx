@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 import { api } from "../../services/api";
@@ -14,21 +14,18 @@ export const LeaderboardPage: React.FC = () => {
   const { token } = useAuth();
   const [competitions, setCompetitions] = useState<PublicCompetition[]>([]);
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>("");
-  const [selectedRound, setSelectedRound] = useState<"overall" | RoundIdentifier>("overall");
+  const [selectedRound, setSelectedRound] = useState<RoundIdentifier>(1);
   const [panels, setPanels] = useState<Panel[]>([]);
   const [selectedPanelFilter, setSelectedPanelFilter] = useState<string>("all");
 
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardResult | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Selected participant for detail modal
   const [detailEntry, setDetailEntry] = useState<RankedLeaderboardEntry | null>(null);
-
-  const refreshTimerRef = useRef<any>(null);
 
   // 1. Initial load of competitions
   useEffect(() => {
@@ -104,8 +101,6 @@ export const LeaderboardPage: React.FC = () => {
       let data: LeaderboardResult | null = null;
       if (selectedPanelFilter !== "all") {
         data = await api.getPanelLeaderboard(selectedCompetitionId, selectedPanelFilter);
-      } else if (selectedRound === "overall") {
-        data = await api.getOverallLeaderboard(selectedCompetitionId);
       } else {
         data = await api.getRoundLeaderboard(selectedCompetitionId, selectedRound);
       }
@@ -128,19 +123,6 @@ export const LeaderboardPage: React.FC = () => {
     fetchLeaderboard().finally(() => setLoading(false));
   }, [selectedCompetitionId, selectedRound, selectedPanelFilter]);
 
-  // 4. Auto-refresh polling every 15 seconds
-  useEffect(() => {
-    if (!autoRefresh || !selectedCompetitionId) return;
-
-    refreshTimerRef.current = setInterval(() => {
-      fetchLeaderboard();
-    }, 15000);
-
-    return () => {
-      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
-    };
-  }, [autoRefresh, selectedCompetitionId, selectedRound, selectedPanelFilter]);
-
   const handlePrint = () => {
     window.print();
   };
@@ -156,12 +138,10 @@ export const LeaderboardPage: React.FC = () => {
       (e.panelName && e.panelName.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
-  const top3 = entries.slice(0, 3);
   const currentCompetition = competitions.find((c) => c.id === selectedCompetitionId);
 
   return (
     <div className="responsive-page-container">
-      {/* Page Title & Live Pulse Header */}
       <div
         className="no-print"
         style={{
@@ -178,34 +158,8 @@ export const LeaderboardPage: React.FC = () => {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px", flexWrap: "wrap" }}>
               <h1 style={{ fontSize: "28px", color: "var(--color-navy)", margin: 0 }}>
-                Live Competition Leaderboard
+                Competition Leaderboard
               </h1>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "rgba(47, 111, 78, 0.12)",
-                color: "var(--color-success)",
-                padding: "4px 10px",
-                borderRadius: "20px",
-                fontSize: "12px",
-                fontWeight: 700,
-                letterSpacing: "0.05em",
-              }}
-            >
-              <span
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "var(--color-success)",
-                  boxShadow: "0 0 6px var(--color-success)",
-                  animation: "pulse 2s infinite",
-                }}
-              />
-              LIVE
-            </span>
           </div>
           <p style={{ color: "var(--color-slate)", fontSize: "14px" }}>
             Think • Adapt • Innovate
@@ -213,27 +167,7 @@ export const LeaderboardPage: React.FC = () => {
         </div>
       </div>
 
-        {/* Live Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontSize: "13px",
-              cursor: "pointer",
-              color: "var(--color-charcoal)",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-              style={{ width: "auto" }}
-            />
-            Auto-refresh (15s)
-          </label>
-
           <button
             onClick={() => fetchLeaderboard()}
             className="btn btn-secondary"
@@ -265,22 +199,7 @@ export const LeaderboardPage: React.FC = () => {
           gap: "16px",
         }}
       >
-        {/* Left: Competition Selector */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <div>
-            <select
-              value={selectedCompetitionId}
-              onChange={(e) => setSelectedCompetitionId(e.target.value)}
-              style={{ minWidth: "220px", fontWeight: 600 }}
-            >
-              {competitions.map((comp) => (
-                <option key={comp.id} value={comp.id}>
-                  {comp.name} ({comp.status.toUpperCase()})
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Round View Mode Tabs */}
           <div
             style={{
@@ -291,28 +210,6 @@ export const LeaderboardPage: React.FC = () => {
               border: "1px solid var(--color-border)",
             }}
           >
-            <button
-              onClick={() => {
-                setSelectedRound("overall");
-                setSelectedPanelFilter("all");
-              }}
-              style={{
-                padding: "6px 14px",
-                fontSize: "13px",
-                border: "none",
-                background:
-                  selectedRound === "overall" && selectedPanelFilter === "all"
-                    ? "var(--color-navy)"
-                    : "transparent",
-                color:
-                  selectedRound === "overall" && selectedPanelFilter === "all"
-                    ? "#FFFFFF"
-                    : "var(--color-navy)",
-                borderRadius: "var(--radius-sm)",
-              }}
-            >
-              Overall Standing
-            </button>
             <button
               onClick={() => setSelectedRound(1)}
               style={{
@@ -376,7 +273,7 @@ export const LeaderboardPage: React.FC = () => {
           <h1 style={{ fontSize: "22px", margin: 0 }}>{currentCompetition?.name} — Official Leaderboard</h1>
         </div>
         <p style={{ fontSize: "12px", color: "#666" }}>
-          Scope: {selectedRound === "overall" ? "Overall Aggregate" : `Round ${selectedRound}`} | Generated:{" "}
+          Scope: Round {selectedRound} | Generated:{" "}
           {lastRefreshedAt.toLocaleString()}
         </p>
       </div>
@@ -417,171 +314,11 @@ export const LeaderboardPage: React.FC = () => {
             No Leaderboard Records Available
           </h3>
           <p style={{ color: "var(--color-slate)", maxWidth: "500px", margin: "0 auto" }}>
-            No submitted evaluations match the selected filter. Once judges submit final evaluations, ranks and scores will populate live.
+            No submitted evaluations match the selected filter. Once judges submit final evaluations, ranks and scores will populate after a refresh.
           </p>
         </div>
       ) : (
         <>
-          {/* Top 3 Podium Showcase (Only in Overall or All Panels view) */}
-          {selectedPanelFilter === "all" && top3.length >= 2 && !searchQuery && (
-            <div
-              className="no-print podium-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: top3.length >= 3 ? "1fr 1.15fr 1fr" : "1fr 1fr",
-                gap: "20px",
-                alignItems: "end",
-                marginBottom: "32px",
-                marginTop: "12px",
-              }}
-            >
-              {/* 2nd Place */}
-              {top3[1] && (
-                <div
-                  className="card"
-                  style={{
-                    textAlign: "center",
-                    padding: "24px 16px",
-                    background: "linear-gradient(180deg, #FFFFFF 0%, #FAF7F0 100%)",
-                    border: "2px solid #D1D5DB",
-                    position: "relative",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "44px",
-                      height: "44px",
-                      borderRadius: "50%",
-                      background: "#9CA3AF",
-                      color: "#FFFFFF",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "-42px auto 12px",
-                      fontWeight: 700,
-                      fontSize: "18px",
-                      boxShadow: "var(--shadow-md)",
-                    }}
-                  >
-                    2
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-slate)", textTransform: "uppercase" }}>
-                    Silver Podium
-                  </div>
-                  <div style={{ fontSize: "17px", fontWeight: 700, color: "var(--color-navy)", marginTop: "4px" }}>
-                    {top3[1].participantName}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--color-slate)", fontFamily: "monospace" }}>
-                    {top3[1].registrationId}
-                  </div>
-                  <div style={{ marginTop: "12px", fontSize: "24px", fontWeight: 800, color: "var(--color-navy)" }}>
-                    {top3[1].totalScore.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-slate)" }}>
-                    Avg: {top3[1].rawTotalMarks.toFixed(1)} pts
-                  </div>
-                </div>
-              )}
-
-              {/* 1st Place (Champion) */}
-              {top3[0] && (
-                <div
-                  className="card"
-                  style={{
-                    textAlign: "center",
-                    padding: "32px 20px",
-                    background: "linear-gradient(180deg, #FFFDF9 0%, #F5EEDB 100%)",
-                    border: "2px solid var(--color-gold)",
-                    boxShadow: "var(--shadow-lg)",
-                    position: "relative",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "56px",
-                      height: "56px",
-                      borderRadius: "50%",
-                      background: "var(--color-gold)",
-                      color: "#FFFFFF",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "-58px auto 14px",
-                      fontWeight: 800,
-                      fontSize: "24px",
-                      boxShadow: "0 4px 14px rgba(181, 154, 101, 0.4)",
-                    }}
-                  >
-                    👑 1
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--color-gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Leader / Champion
-                  </div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-navy)", marginTop: "4px" }}>
-                    {top3[0].participantName}
-                  </div>
-                  <div style={{ fontSize: "13px", color: "var(--color-slate)", fontFamily: "monospace" }}>
-                    {top3[0].registrationId}
-                  </div>
-                  <div style={{ marginTop: "14px", fontSize: "32px", fontWeight: 900, color: "var(--color-navy)" }}>
-                    {top3[0].totalScore.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--color-gold)", fontWeight: 600 }}>
-                    Avg: {top3[0].rawTotalMarks.toFixed(1)} raw marks
-                  </div>
-                </div>
-              )}
-
-              {/* 3rd Place */}
-              {top3[2] && (
-                <div
-                  className="card"
-                  style={{
-                    textAlign: "center",
-                    padding: "24px 16px",
-                    background: "linear-gradient(180deg, #FFFFFF 0%, #FAF7F0 100%)",
-                    border: "2px solid #E5BA82",
-                    position: "relative",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "44px",
-                      height: "44px",
-                      borderRadius: "50%",
-                      background: "#CD7F32",
-                      color: "#FFFFFF",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "-42px auto 12px",
-                      fontWeight: 700,
-                      fontSize: "18px",
-                      boxShadow: "var(--shadow-md)",
-                    }}
-                  >
-                    3
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-slate)", textTransform: "uppercase" }}>
-                    Bronze Podium
-                  </div>
-                  <div style={{ fontSize: "17px", fontWeight: 700, color: "var(--color-navy)", marginTop: "4px" }}>
-                    {top3[2].participantName}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--color-slate)", fontFamily: "monospace" }}>
-                    {top3[2].registrationId}
-                  </div>
-                  <div style={{ marginTop: "12px", fontSize: "24px", fontWeight: 800, color: "var(--color-navy)" }}>
-                    {top3[2].totalScore.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-slate)" }}>
-                    Avg: {top3[2].rawTotalMarks.toFixed(1)} pts
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Leaderboard Data Table */}
           <div className="table-container">
             <table>
@@ -591,20 +328,9 @@ export const LeaderboardPage: React.FC = () => {
                   <th style={{ width: "130px" }}>Reg. ID</th>
                   <th>Participant</th>
                   <th>Panel</th>
-                  {selectedRound === "overall" ? (
-                    <>
-                      <th style={{ textAlign: "right" }}>Round 1 Score</th>
-                      <th style={{ textAlign: "right" }}>Round 2 Score</th>
-                      <th style={{ textAlign: "right" }}>Normalized Score</th>
-                      <th style={{ textAlign: "right" }}>Raw Average</th>
-                    </>
-                  ) : (
-                    <>
-                      <th style={{ textAlign: "right" }}>Round Score</th>
-                      <th style={{ textAlign: "right" }}>Raw Avg Marks</th>
-                      <th style={{ textAlign: "center" }}>Judges Completed</th>
-                    </>
-                  )}
+                  <th style={{ textAlign: "right" }}>Round Score</th>
+                  <th style={{ textAlign: "right" }}>Raw Avg Marks</th>
+                  <th style={{ textAlign: "center" }}>Judges Completed</th>
                   <th className="no-print" style={{ textAlign: "center", width: "100px" }}>
                     Details
                   </th>
@@ -612,9 +338,6 @@ export const LeaderboardPage: React.FC = () => {
               </thead>
               <tbody>
                 {entries.map((entry) => {
-                  const r1 = entry.roundResults?.[1];
-                  const r2 = entry.roundResults?.[2];
-
                   return (
                     <tr key={entry.participantId}>
                       {/* Rank Cell */}
@@ -697,70 +420,35 @@ export const LeaderboardPage: React.FC = () => {
                       {/* Panel */}
                       <td style={{ color: "var(--color-slate)" }}>{entry.panelName || "—"}</td>
 
-                      {/* Conditional Round Columns */}
-                      {selectedRound === "overall" ? (
-                        <>
-                          <td style={{ textAlign: "right" }}>
-                            {r1 ? (
-                              <span style={{ fontWeight: 600 }}>{r1.roundScore.toFixed(2)}</span>
-                            ) : (
-                              <span style={{ color: "var(--color-slate)" }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            {r2 ? (
-                              <span style={{ fontWeight: 600 }}>{r2.roundScore.toFixed(2)}</span>
-                            ) : (
-                              <span style={{ color: "var(--color-slate)" }}>—</span>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              textAlign: "right",
-                              fontSize: "16px",
-                              fontWeight: 800,
-                              color: "var(--color-navy)",
-                            }}
-                          >
-                            {entry.totalScore.toFixed(2)}
-                          </td>
-                          <td style={{ textAlign: "right", color: "var(--color-slate)" }}>
-                            {entry.rawTotalMarks.toFixed(1)}
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td
-                            style={{
-                              textAlign: "right",
-                              fontSize: "16px",
-                              fontWeight: 800,
-                              color: "var(--color-navy)",
-                            }}
-                          >
-                            {entry.totalScore.toFixed(2)}
-                          </td>
-                          <td style={{ textAlign: "right", color: "var(--color-slate)" }}>
-                            {entry.rawTotalMarks.toFixed(1)}
-                          </td>
-                          <td style={{ textAlign: "center" }}>
-                            {(() => {
-                              const rData = entry.roundResults?.[selectedRound as RoundIdentifier];
-                              if (!rData) return <span style={{ color: "var(--color-slate)" }}>0</span>;
-                              return (
-                                <span
-                                  className={`badge ${
-                                    rData.isComplete ? "badge-submitted" : "badge-pending"
-                                  }`}
-                                  style={{ fontSize: "11px" }}
-                                >
-                                  {rData.judgeCount} / {rData.panelJudgeCount} Judges
-                                </span>
-                              );
-                            })()}
-                          </td>
-                        </>
-                      )}
+                      <td
+                        style={{
+                          textAlign: "right",
+                          fontSize: "16px",
+                          fontWeight: 800,
+                          color: "var(--color-navy)",
+                        }}
+                      >
+                        {entry.totalScore.toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: "right", color: "var(--color-slate)" }}>
+                        {entry.rawTotalMarks.toFixed(1)}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {(() => {
+                          const rData = entry.roundResults?.[selectedRound];
+                          if (!rData) return <span style={{ color: "var(--color-slate)" }}>0</span>;
+                          return (
+                            <span
+                              className={`badge ${
+                                rData.isComplete ? "badge-submitted" : "badge-pending"
+                              }`}
+                              style={{ fontSize: "11px" }}
+                            >
+                              {rData.judgeCount} / {rData.panelJudgeCount} Judges
+                            </span>
+                          );
+                        })()}
+                      </td>
 
                       {/* Details Button */}
                       <td className="no-print" style={{ textAlign: "center" }}>
@@ -825,7 +513,7 @@ export const LeaderboardPage: React.FC = () => {
 
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: "11px", color: "var(--color-slate)", textTransform: "uppercase" }}>
-                  Overall Standing
+                  Leaderboard Standing
                 </div>
                 <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--color-navy)" }}>
                   Rank #{detailEntry.rank}

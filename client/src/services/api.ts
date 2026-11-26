@@ -173,16 +173,6 @@ class ApiService {
     return this.request<{ competition: Competition }>(`/competitions/${competitionId}`);
   }
 
-  async createCompetition(data: {
-    name: string;
-    description?: string;
-  }): Promise<{ competition: Competition }> {
-    return this.request<{ competition: Competition }>("/competitions", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
   async updateCompetition(
     competitionId: string,
     data: Partial<Pick<Competition, "name" | "description" | "status">>,
@@ -432,10 +422,6 @@ class ApiService {
   }
 
   // --- Leaderboard Endpoints ---
-  async getOverallLeaderboard(competitionId: string): Promise<LeaderboardResult> {
-    return this.request<LeaderboardResult>(`/competitions/${competitionId}/leaderboard`);
-  }
-
   async getRoundLeaderboard(
     competitionId: string,
     round: RoundIdentifier,

@@ -599,12 +599,6 @@ html, body {
     max-height: calc(100vh - 20px) !important;
   }
 
-  .podium-grid {
-    grid-template-columns: 1fr !important;
-    gap: 16px !important;
-    align-items: stretch !important;
-  }
-
   /* Form and button adjustments */
   .btn {
     min-height: 40px;
