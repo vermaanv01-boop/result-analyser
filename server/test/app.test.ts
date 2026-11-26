@@ -68,6 +68,30 @@ describe("cors policy", (): void => {
     );
   });
 
+  test("allows the Vercel frontend origin", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/health/live`, {
+      headers: { Origin: "https://venture-verse-leaderboard.vercel.app" },
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("access-control-allow-origin"),
+      "https://venture-verse-leaderboard.vercel.app",
+    );
+  });
+
+  test("allows the Netlify frontend origin", async (): Promise<void> => {
+    const response = await fetch(`${baseUrl}/api/v1/health/live`, {
+      headers: { Origin: "https://venture-craft-leaderboard.netlify.app" },
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("access-control-allow-origin"),
+      "https://venture-craft-leaderboard.netlify.app",
+    );
+  });
+
   test("allows loopback origins outside production", async (): Promise<void> => {
     const response = await fetch(`${baseUrl}/api/v1/health/live`, {
       headers: { Origin: "http://localhost:4200" },
@@ -81,12 +105,17 @@ describe("cors policy", (): void => {
   });
 
   test("withholds headers from disallowed origins", async (): Promise<void> => {
-    const response = await fetch(`${baseUrl}/api/v1/health/live`, {
-      headers: { Origin: "https://evil.example" },
-    });
+    for (const origin of [
+      "https://evil.example",
+      "https://venture-verse-leaderboard.vercel.app.evil.example",
+    ]) {
+      const response = await fetch(`${baseUrl}/api/v1/health/live`, {
+        headers: { Origin: origin },
+      });
 
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("access-control-allow-origin"), null);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("access-control-allow-origin"), null);
+    }
   });
 
   test("answers preflight requests", async (): Promise<void> => {

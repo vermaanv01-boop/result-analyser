@@ -21,6 +21,7 @@ function isLoopbackOrigin(origin: string): boolean {
 
 const KNOWN_ALLOWED_ORIGINS = new Set([
   "https://venture-craft-leaderboard.netlify.app",
+  "https://venture-verse-leaderboard.vercel.app",
 ]);
 
 function normalizeOrigin(origin: string): string {
