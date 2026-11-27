@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+git add .import { randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import {
   assertConnectedDatabaseName,
@@ -199,13 +199,20 @@ async function resolveVcAdmin(
   dependencies: SeedDependencies,
   byLoginId: ReadonlyMap<string, SeedUser>,
 ): Promise<{ user: SeedUser; needsMigration: boolean }> {
-  const existingById = byLoginId.get("vc-admin");
   const legacyMatches = await dependencies.findByEmail(LEGACY_ADMIN_EMAIL);
   const legacyUser = assertSingleDocument(legacyMatches, LEGACY_ADMIN_EMAIL);
 
+  if (!legacyUser) {
+    throw new SeedConflictError(
+      `Legacy admin account ${LEGACY_ADMIN_EMAIL} is missing; refusing to create a replacement`,
+    );
+  }
+
+  assertActiveAdmin(legacyUser, "Legacy admin account");
+
+  const existingById = byLoginId.get("vc-admin");
   if (
     existingById &&
-    legacyUser &&
     idToString(existingById._id) !== idToString(legacyUser._id)
   ) {
     throw new SeedConflictError(
@@ -213,21 +220,10 @@ async function resolveVcAdmin(
     );
   }
 
-  const user = existingById ?? legacyUser;
-  if (!user) {
-    throw new SeedConflictError(
-      "Legacy admin account is missing; refusing to create a replacement",
-    );
-  }
-
-  assertActiveAdmin(user, "vc-admin account");
-  if (user.loginId && user.loginId !== "vc-admin") {
-    throw new SeedConflictError(
-      "Legacy admin account already has a different loginId",
-    );
-  }
-
-  return { user, needsMigration: user.loginId !== "vc-admin" };
+  return {
+    user: legacyUser,
+    needsMigration: legacyUser.loginId !== "vc-admin",
+  };
 }
 
 async function planNewAdmins(

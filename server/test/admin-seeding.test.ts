@@ -103,6 +103,18 @@ function legacyAdmin(): FakeUser {
   };
 }
 
+function existingAdmin(loginId: string, id: string = loginId): FakeUser {
+  return {
+    _id: id,
+    email: `${loginId}@testing.venturecraft.invalid`,
+    loginId,
+    role: "admin",
+    isActive: true,
+    passwordHash: `${loginId}-password-hash`,
+    fullName: `${loginId} Admin`,
+  };
+}
+
 function createFakeDependencies(
   state: FakeState,
   overrides: Partial<SeedDependencies> = {},
@@ -295,6 +307,96 @@ describe("admin seeding", () => {
     assert.equal(state.createInputs.length, 0);
     assert.equal(state.exports.length, 0);
     assert.equal(state.migrations.length, 0);
+  });
+
+  it("aborts when the legacy admin is missing even if vc-admin already exists", async () => {
+    const state = newState();
+    const orphan = existingAdmin("vc-admin", "orphan-vc-admin");
+    state.users.push(orphan);
+
+    await assert.rejects(
+      seedAdmins(testingOptions(true), createFakeDependencies(state)),
+      (error: unknown) =>
+        error instanceof SeedConflictError &&
+        error.message.includes("admin@karvaan.org is missing"),
+    );
+
+    assert.equal(orphan.loginId, "vc-admin");
+    assert.equal(state.createInputs.length, 0);
+    assert.equal(state.exports.length, 0);
+    assert.equal(state.migrations.length, 0);
+    assert.equal(state.generatedPasswords.length, 0);
+    assert.equal(state.disconnected, true);
+  });
+
+  it("aborts when vc-admin belongs to a different account", async () => {
+    const state = newState();
+    const legacy = legacyAdmin();
+    const conflictingAccount = existingAdmin(
+      "vc-admin",
+      "conflicting-vc-admin",
+    );
+    state.users.push(legacy, conflictingAccount);
+
+    await assert.rejects(
+      seedAdmins(testingOptions(true), createFakeDependencies(state)),
+      (error: unknown) =>
+        error instanceof SeedConflictError &&
+        error.message.includes("identify different accounts"),
+    );
+
+    assert.equal(legacy.loginId, undefined);
+    assert.equal(conflictingAccount.loginId, "vc-admin");
+    assert.equal(conflictingAccount.passwordHash, "vc-admin-password-hash");
+    assert.equal(state.createInputs.length, 0);
+    assert.equal(state.exports.length, 0);
+    assert.equal(state.migrations.length, 0);
+    assert.equal(state.generatedPasswords.length, 0);
+    assert.equal(state.disconnected, true);
+  });
+
+  it("migrates the legacy admin without changing its other fields", async () => {
+    const state = newState();
+    const legacy = legacyAdmin();
+    state.users.push(
+      legacy,
+      ...EXPECTED_NEW_LOGIN_IDS.map((loginId) => existingAdmin(loginId)),
+    );
+
+    const result = await seedAdmins(
+      testingOptions(true),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, true);
+    assert.equal(result.migratedVcAdmin, true);
+    assert.deepEqual(result.createdLoginIds, []);
+    assert.equal(state.migrations.length, 1);
+    assert.equal(state.createInputs.length, 0);
+    assert.equal(state.generatedPasswords.length, 0);
+
+    assert.equal(legacy.loginId, "vc-admin");
+    assert.equal(legacy.email, "admin@karvaan.org");
+    assert.equal(legacy.passwordHash, "legacy-password-hash");
+    assert.equal(legacy.fullName, "Legacy Admin");
+    assert.equal(legacy.role, "admin");
+    assert.equal(legacy.isActive, true);
+
+    const credentialExport = state.exports[0];
+    if (!credentialExport) {
+      throw new Error("Credential export was not written");
+    }
+    assert.equal(
+      credentialExport.accounts.filter(
+        (account) => account.passwordStatus === "created",
+      ).length,
+      0,
+    );
+    assert.equal(
+      credentialExport.accounts.find((account) => account.loginId === "vc-admin")
+        ?.password,
+      null,
+    );
   });
 
   it("dry-runs the full migration without generating passwords or writing", async () => {
