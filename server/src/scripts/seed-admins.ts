@@ -410,7 +410,11 @@ async function applyPlan(
   dependencies: SeedDependencies,
   plan: SeedPlan,
 ): Promise<string | null> {
-  if (plan.creates.length === 0 && !plan.vcAdminNeedsMigration) {
+  if (
+    plan.creates.length === 0 &&
+    !plan.vcAdminNeedsMigration &&
+    !plan.vcAdminBootstrap
+  ) {
     dependencies.logger.info("[seed] Already up to date; no writes were made");
     return null;
   }
