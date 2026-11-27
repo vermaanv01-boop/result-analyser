@@ -597,7 +597,7 @@ export function createSeedDependencies(
       const updated = await User.findOneAndUpdate(
         { _id: id, loginId: { $exists: false } },
         { $set: { loginId } },
-        { new: true, timestamps: false },
+        { returnDocument: "after", timestamps: false },
       )
         .select("loginId email role isActive")
         .lean();
