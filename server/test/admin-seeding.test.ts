@@ -320,6 +320,148 @@ describe("admin seeding", () => {
     assert.equal(state.disconnected, true);
   });
 
+  it("dry-runs testing bootstrap without generating passwords or writing", async () => {
+    const state = newState();
+    state.indexes = [];
+
+    const result = await seedAdmins(
+      testingOptions(false),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, false);
+    assert.deepEqual(result.createdLoginIds, []);
+    assert.equal(result.exportPath, null);
+    assert.equal(state.createInputs.length, 0);
+    assert.equal(state.exports.length, 0);
+    assert.equal(state.generatedPasswords.length, 0);
+    assert.equal(state.hashCalls.length, 0);
+    assert.equal(state.migrations.length, 0);
+    assert.equal(state.indexes.length, 0);
+    assert.equal(state.disconnected, true);
+    assert.ok(
+      state.logs.some((line) =>
+        line.includes("Would bootstrap admin vc-admin in testing"),
+      ),
+    );
+    for (const loginId of EXPECTED_NEW_LOGIN_IDS) {
+      assert.ok(
+        state.logs.some((line) => line.includes(`Would create admin ${loginId}`)),
+      );
+    }
+    assert.ok(
+      state.logs.some((line) => line.includes("user_loginId_unique would be created")),
+    );
+  });
+
+  it("bootstraps testing vc-admin and creates six admins with new credentials", async () => {
+    const state = newState();
+    state.indexes = [];
+
+    const result = await seedAdmins(
+      testingOptions(true),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, true);
+    assert.equal(result.migratedVcAdmin, false);
+    assert.deepEqual(result.createdLoginIds, [
+      "vc-admin",
+      ...EXPECTED_NEW_LOGIN_IDS,
+    ]);
+    assert.equal(state.createInputs.length, 7);
+    assert.equal(state.migrations.length, 0);
+    assert.equal(state.generatedPasswords.length, 7);
+    assert.equal(new Set(state.generatedPasswords).size, 7);
+    assert.equal(state.hashCalls.length, 7);
+    assert.equal(new Set(state.hashCalls).size, 7);
+    assert.equal(state.exports.length, 1);
+    assert.equal(state.disconnected, true);
+
+    const credentialExport = state.exports[0];
+    if (!credentialExport) {
+      throw new Error("Credential export was not written");
+    }
+    assert.equal(credentialExport.target, "testing");
+    assert.equal(credentialExport.databaseName, "venture_craft_testing");
+    assert.equal(credentialExport.accounts.length, 7);
+    assert.ok(
+      credentialExport.accounts.every(
+        (account) =>
+          account.passwordStatus === "created" &&
+          typeof account.password === "string",
+      ),
+    );
+    assert.equal(
+      new Set(
+        credentialExport.accounts.map((account) => account.password),
+      ).size,
+      7,
+    );
+    assert.equal(
+      credentialExport.accounts.find((account) => account.loginId === "vc-admin")
+        ?.email,
+      "admin@karvaan.org",
+    );
+
+    const bootstrappedAdmin = state.createInputs.find(
+      (input) => input.loginId === "vc-admin",
+    );
+    if (!bootstrappedAdmin) {
+      throw new Error("Bootstrapped vc-admin was not created");
+    }
+    assert.equal(bootstrappedAdmin.email, "admin@karvaan.org");
+    assert.equal(bootstrappedAdmin.role, "admin");
+    assert.equal(bootstrappedAdmin.isActive, true);
+    assert.ok(bootstrappedAdmin.passwordHash.startsWith("hashed:"));
+
+    for (const create of state.createInputs.filter(
+      (input) => input.loginId !== "vc-admin",
+    )) {
+      assert.equal(
+        create.email,
+        `${create.loginId}@testing.venturecraft.invalid`,
+      );
+      assert.ok(create.passwordHash.startsWith("hashed:"));
+    }
+
+    assert.ok(
+      state.indexes.some(
+        (index) =>
+          index.unique === true &&
+          index.sparse === true &&
+          index.key["loginId"] === 1 &&
+          Object.keys(index.key).length === 1,
+      ),
+    );
+    assert.ok(
+      state.logs.every((line) => !line.includes("generated-password-")),
+    );
+  });
+
+  it("does not regenerate credentials when rerunning testing bootstrap", async () => {
+    const state = newState();
+    const dependencies = createFakeDependencies(state);
+
+    await seedAdmins(testingOptions(true), dependencies);
+    const createCount = state.createInputs.length;
+    const exportCount = state.exports.length;
+    const passwordCount = state.generatedPasswords.length;
+    const hashCount = state.hashCalls.length;
+
+    const result = await seedAdmins(testingOptions(true), dependencies);
+
+    assert.equal(result.applied, true);
+    assert.deepEqual(result.createdLoginIds, []);
+    assert.equal(result.migratedVcAdmin, false);
+    assert.equal(result.exportPath, null);
+    assert.equal(state.createInputs.length, createCount);
+    assert.equal(state.exports.length, exportCount);
+    assert.equal(state.generatedPasswords.length, passwordCount);
+    assert.equal(state.hashCalls.length, hashCount);
+    assert.equal(state.migrations.length, 0);
+  });
+
   it("aborts testing bootstrap when vc-admin is already assigned", async () => {
     const state = newState();
     const orphan = existingAdmin("vc-admin", "orphan-vc-admin");
