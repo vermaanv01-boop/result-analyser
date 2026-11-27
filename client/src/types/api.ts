@@ -8,6 +8,11 @@ export interface User {
   isActive: boolean;
 }
 
+export interface LoginPayload {
+  identifier: string;
+  password: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

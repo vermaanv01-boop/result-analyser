@@ -13,7 +13,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isJudge: boolean;
   isParticipant: boolean;
-  login: (email: string, pass: string) => Promise<User>;
+  login: (identifier: string, pass: string) => Promise<User>;
   registerParticipant: (data: RegisterParticipantPayload) => Promise<RegisterParticipantResponse>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -62,8 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener("karvaan_auth_expired", handleExpired);
   }, []);
 
-  const login = async (email: string, pass: string): Promise<User> => {
-    const res = await api.login(email, pass);
+  const login = async (identifier: string, pass: string): Promise<User> => {
+    const res = await api.login({ identifier, password: pass });
     setUser(res.user);
     setToken(res.token);
     return res.user;

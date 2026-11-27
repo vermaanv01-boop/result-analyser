@@ -20,7 +20,7 @@ export async function loginHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const result = await login(req.body.email, req.body.password);
+    const result = await login(req.body.identifier, req.body.password);
     res.status(200).json(result);
   } catch (error) {
     next(error);

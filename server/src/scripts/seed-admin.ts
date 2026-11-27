@@ -1,44 +1,4 @@
-import bcrypt from "bcryptjs";
-import { connectDatabase, disconnectDatabase } from "../config/database";
-import { User } from "../models/user.model";
-
-async function seedAdmin() {
-  const email = process.env.ADMIN_EMAIL || "admin@venturecraft.org";
-  const password = process.env.ADMIN_PASSWORD || "Admin@VentureCraft2026!";
-  const name = process.env.ADMIN_NAME || "Venture Craft Administrator";
-
-  console.log(`[seed] Connecting to database...`);
-  await connectDatabase();
-
-  try {
-    const existing = await User.findOne({ email });
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    if (existing) {
-      existing.name = name;
-      existing.passwordHash = passwordHash;
-      existing.role = "admin";
-      existing.isActive = true;
-      await existing.save();
-      console.log(`[seed] Updated existing administrator user: ${email}`);
-    } else {
-      await User.create({
-        name,
-        email,
-        passwordHash,
-        role: "admin",
-        isActive: true,
-      });
-      console.log(`[seed] Created initial administrator user: ${email}`);
-    }
-
-    console.log(`[seed] Admin provisioning complete. You can now log in at /login`);
-  } catch (err) {
-    console.error(`[seed] Failed to provision admin:`, err);
-    process.exitCode = 1;
-  } finally {
-    await disconnectDatabase();
-  }
-}
-
-seedAdmin();
+console.error(
+  "[seed] src/scripts/seed-admin.ts is disabled. Use src/scripts/seed-admins.ts with --target testing|production instead.",
+);
+process.exitCode = 1;

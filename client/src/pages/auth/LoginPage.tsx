@@ -3,8 +3,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 
+const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|[a-z0-9][a-z0-9._-]{2,31})$/i;
+
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -18,9 +20,21 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const normalizedIdentifier = identifier.trim();
+
+    if (!IDENTIFIER_PATTERN.test(normalizedIdentifier)) {
+      setError("Enter a valid email address or admin ID.");
+      return;
+    }
+
+    if (!password) {
+      setError("Enter your password.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const user = await login(email, password);
+      const user = await login(normalizedIdentifier, password);
       if (from) {
         navigate(from, { replace: true });
       } else if (user.role === "admin") {
@@ -140,15 +154,16 @@ export const LoginPage: React.FC = () => {
                 marginBottom: "6px",
               }}
             >
-              Email Address
+              Email Address or Admin ID
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. participant@university.edu"
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="e.g. participant@university.edu or vc-admin"
               required
               autoFocus
+              autoComplete="username"
             />
           </div>
 

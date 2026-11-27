@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && tsx --test test/**/*.test.ts",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "seed:admins": "tsx src/scripts/seed-admins.ts",
     "verify:atlas": "tsx src/scripts/verify-workflows.ts"
   },
   "dependencies": {

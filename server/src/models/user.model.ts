@@ -11,6 +11,8 @@ export const USER_ROLES = ["admin", "judge", "participant"] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const LOGIN_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{2,31}$/;
+
 const userSchema = new Schema(
   {
     name: {
@@ -25,6 +27,15 @@ const userSchema = new Schema(
       trim: true,
       lowercase: true,
       match: [/^\S+@\S+\.\S+$/, "email must be a valid email address"],
+    },
+    loginId: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: [
+        LOGIN_ID_PATTERN,
+        "loginId must be 3-32 characters and use only letters, numbers, dot, underscore, or hyphen",
+      ],
     },
     passwordHash: {
       type: String,
@@ -47,6 +58,11 @@ const userSchema = new Schema(
   {
     timestamps: true,
   },
+);
+
+userSchema.index(
+  { loginId: 1 },
+  { name: "user_loginId_unique", unique: true, sparse: true },
 );
 
 export type User = InferSchemaType<typeof userSchema>;

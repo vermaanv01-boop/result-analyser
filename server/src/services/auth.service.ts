@@ -51,12 +51,20 @@ export interface LoginResult {
   user: AuthenticatedUser;
 }
 
-export async function login(email: string, plaintext: string): Promise<LoginResult> {
-  const normalizedEmail = email.trim().toLowerCase();
-  const user = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
+export async function login(
+  identifier: string,
+  plaintext: string,
+): Promise<LoginResult> {
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const user = await User.findOne({
+    $or: [
+      { email: normalizedIdentifier },
+      { loginId: normalizedIdentifier },
+    ],
+  }).select("+passwordHash");
 
   if (!user) {
-    throw ApiError.unauthorized("Invalid email or password");
+    throw ApiError.unauthorized("Invalid identifier or password");
   }
 
   if (!user.isActive) {
@@ -65,7 +73,7 @@ export async function login(email: string, plaintext: string): Promise<LoginResu
 
   const isMatch = await comparePassword(plaintext, user.passwordHash);
   if (!isMatch) {
-    throw ApiError.unauthorized("Invalid email or password");
+    throw ApiError.unauthorized("Invalid identifier or password");
   }
 
   const payload: AuthTokenPayload = {
@@ -91,6 +99,7 @@ export async function login(email: string, plaintext: string): Promise<LoginResu
 export interface CreateUserData {
   name: string;
   email: string;
+  loginId?: string | undefined;
   password: string;
   role: UserRole;
   isActive?: boolean | undefined;
@@ -98,16 +107,27 @@ export interface CreateUserData {
 
 export async function provisionUser(data: CreateUserData): Promise<AuthenticatedUser> {
   const normalizedEmail = data.email.trim().toLowerCase();
+  const normalizedLoginId = data.loginId?.trim().toLowerCase();
+
   const existing = await User.findOne({ email: normalizedEmail });
 
   if (existing) {
     throw ApiError.conflict("User with this email already exists");
   }
 
+  if (normalizedLoginId) {
+    const existingLoginId = await User.findOne({ loginId: normalizedLoginId });
+
+    if (existingLoginId) {
+      throw ApiError.conflict("User with this login ID already exists");
+    }
+  }
+
   const passwordHash = await hashPassword(data.password);
   const user = await User.create({
     name: data.name.trim(),
     email: normalizedEmail,
+    ...(normalizedLoginId ? { loginId: normalizedLoginId } : {}),
     passwordHash,
     role: data.role,
     isActive: data.isActive ?? true,

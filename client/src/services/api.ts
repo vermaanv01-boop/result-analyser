@@ -5,6 +5,7 @@ import type {
   EvaluationParameter,
   JudgeAssignedPanel,
   LeaderboardResult,
+  LoginPayload,
   Panel,
   Participant,
   ParticipantEvaluationDetails,
@@ -128,10 +129,10 @@ class ApiService {
   }
 
   // --- Auth Endpoints ---
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(payload: LoginPayload): Promise<AuthResponse> {
     const res = await this.request<AuthResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(payload),
     });
     localStorage.setItem("karvaan_token", res.token);
     localStorage.setItem("karvaan_user", JSON.stringify(res.user));
