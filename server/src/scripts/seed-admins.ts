@@ -110,11 +110,19 @@ interface CreatePlan {
   password: string | null;
 }
 
+interface VcAdminBootstrapPlan {
+  loginId: "vc-admin";
+  email: string;
+  name: string;
+  password: string | null;
+}
+
 interface SeedPlan {
-  vcAdminUser: SeedUser;
+  vcAdminUser: SeedUser | null;
   vcAdminNeedsMigration: boolean;
+  vcAdminBootstrap: VcAdminBootstrapPlan | null;
   creates: CreatePlan[];
-  existingLoginIds: AdminLoginId[];
+  existingLoginIds: NewAdminLoginId[];
 }
 
 export interface SeedResult {
@@ -196,16 +204,43 @@ function generateUniquePassword(
 }
 
 async function resolveVcAdmin(
+  options: SeedOptions,
   dependencies: SeedDependencies,
   byLoginId: ReadonlyMap<string, SeedUser>,
-): Promise<{ user: SeedUser; needsMigration: boolean }> {
+  usedPasswords: Set<string>,
+): Promise<{
+  user: SeedUser | null;
+  needsMigration: boolean;
+  bootstrap: VcAdminBootstrapPlan | null;
+}> {
   const legacyMatches = await dependencies.findByEmail(LEGACY_ADMIN_EMAIL);
   const legacyUser = assertSingleDocument(legacyMatches, LEGACY_ADMIN_EMAIL);
 
   if (!legacyUser) {
-    throw new SeedConflictError(
-      `Legacy admin account ${LEGACY_ADMIN_EMAIL} is missing; refusing to create a replacement`,
-    );
+    if (options.target !== "testing") {
+      throw new SeedConflictError(
+        `Legacy admin account ${LEGACY_ADMIN_EMAIL} is missing; refusing to create a replacement`,
+      );
+    }
+
+    if (byLoginId.has("vc-admin")) {
+      throw new SeedConflictError(
+        "Cannot bootstrap vc-admin in testing because loginId vc-admin is already assigned to another account",
+      );
+    }
+
+    return {
+      user: null,
+      needsMigration: false,
+      bootstrap: {
+        loginId: "vc-admin",
+        email: LEGACY_ADMIN_EMAIL,
+        name: "Venture Craft Administrator",
+        password: options.apply
+          ? generateUniquePassword(dependencies.generatePassword, usedPasswords)
+          : null,
+      },
+    };
   }
 
   assertActiveAdmin(legacyUser, "Legacy admin account");
@@ -223,6 +258,7 @@ async function resolveVcAdmin(
   return {
     user: legacyUser,
     needsMigration: legacyUser.loginId !== "vc-admin",
+    bootstrap: null,
   };
 }
 
@@ -230,10 +266,10 @@ async function planNewAdmins(
   options: SeedOptions,
   dependencies: SeedDependencies,
   byLoginId: ReadonlyMap<string, SeedUser>,
+  usedPasswords: Set<string>,
 ): Promise<{ creates: CreatePlan[]; existingLoginIds: NewAdminLoginId[] }> {
   const creates: CreatePlan[] = [];
   const existingLoginIds: NewAdminLoginId[] = [];
-  const usedPasswords = new Set<string>();
   const newLoginIds = ADMIN_LOGIN_IDS.slice(1) as readonly NewAdminLoginId[];
 
   for (const loginId of newLoginIds) {
@@ -313,16 +349,33 @@ function buildCredentialRecords(
   options: SeedOptions,
   plan: SeedPlan,
 ): CredentialRecord[] {
-  const records: CredentialRecord[] = [
-    {
+  const records: CredentialRecord[] = [];
+
+  if (plan.vcAdminBootstrap) {
+    if (!plan.vcAdminBootstrap.password) {
+      throw new SeedConflictError("Missing bootstrap password for credential export");
+    }
+    records.push({
+      loginId: "vc-admin",
+      email: plan.vcAdminBootstrap.email,
+      role: "admin",
+      isActive: true,
+      password: plan.vcAdminBootstrap.password,
+      passwordStatus: "created",
+    });
+  } else {
+    if (!plan.vcAdminUser) {
+      throw new SeedConflictError("Missing existing vc-admin account for credential export");
+    }
+    records.push({
       loginId: "vc-admin",
       email: plan.vcAdminUser.email,
       role: "admin",
       isActive: true,
       password: null,
       passwordStatus: "preserved-not-exported",
-    },
-  ];
+    });
+  }
 
   for (const loginId of plan.existingLoginIds) {
     records.push({
