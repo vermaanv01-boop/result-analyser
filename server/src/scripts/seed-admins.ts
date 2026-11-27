@@ -431,7 +431,26 @@ async function applyPlan(
   const exportPath = await dependencies.writeExport(credentialExport);
   dependencies.logger.info(`[seed] Wrote credential export to ${exportPath}`);
 
-  if (plan.vcAdminNeedsMigration) {
+  if (plan.vcAdminBootstrap) {
+    if (!plan.vcAdminBootstrap.password) {
+      throw new SeedConflictError("Missing bootstrap password for account creation");
+    }
+    const passwordHash = await dependencies.hashPassword(
+      plan.vcAdminBootstrap.password,
+    );
+    await dependencies.createUser({
+      name: plan.vcAdminBootstrap.name,
+      email: plan.vcAdminBootstrap.email,
+      loginId: "vc-admin",
+      passwordHash,
+      role: "admin",
+      isActive: true,
+    });
+    dependencies.logger.info("[seed] Bootstrapped admin vc-admin in testing");
+  } else if (plan.vcAdminNeedsMigration) {
+    if (!plan.vcAdminUser) {
+      throw new SeedConflictError("Missing existing vc-admin account for migration");
+    }
     await dependencies.setLoginId(plan.vcAdminUser._id, "vc-admin");
     dependencies.logger.info("[seed] Assigned loginId vc-admin to existing admin");
   }
