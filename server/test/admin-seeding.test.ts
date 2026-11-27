@@ -636,7 +636,10 @@ describe("admin seeding", () => {
         loginId: { $exists: false },
       });
       assert.deepEqual(captured.update, { $set: { loginId: "vc-admin" } });
-      assert.deepEqual(captured.options, { new: true, timestamps: false });
+      assert.deepEqual(captured.options, {
+        returnDocument: "after",
+        timestamps: false,
+      });
       assert.equal(updated.loginId, "vc-admin");
     } finally {
       (User as unknown as { findOneAndUpdate: typeof User.findOneAndUpdate })
