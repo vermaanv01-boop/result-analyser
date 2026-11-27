@@ -299,19 +299,25 @@ describe("admin seeding", () => {
     assert.equal(state.disconnected, true);
   });
 
-  it("refuses to create a replacement when the legacy admin is missing", async () => {
+  it("production aborts when the legacy admin is missing", async () => {
     const state = newState();
 
     await assert.rejects(
-      seedAdmins(testingOptions(true), createFakeDependencies(state)),
+      seedAdmins(
+        productionOptions(true, PRODUCTION_CONFIRMATION),
+        createFakeDependencies(state),
+      ),
       (error: unknown) =>
         error instanceof SeedConflictError &&
-        error.message.includes("refusing to create a replacement"),
+        error.message.includes("admin@karvaan.org is missing"),
     );
 
     assert.equal(state.createInputs.length, 0);
     assert.equal(state.exports.length, 0);
+    assert.equal(state.generatedPasswords.length, 0);
+    assert.equal(state.hashCalls.length, 0);
     assert.equal(state.migrations.length, 0);
+    assert.equal(state.disconnected, true);
   });
 
   it("aborts when the legacy admin is missing even if vc-admin already exists", async () => {
