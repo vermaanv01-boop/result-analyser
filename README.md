@@ -1034,7 +1034,9 @@ Detailed technical references are maintained in the repository:
 
 2. Deploy the generated `client/dist/` directory to any static CDN hosting provider (Vercel, Netlify, Cloudflare Pages, AWS S3/CloudFront).
 
-3. Ensure SPA fallback routing is enabled (rewriting all non-asset requests to `index.html`).
+3. For Vercel Git integration, set **Root Directory** to `client`, **Build Command** to `npm run build`, **Output Directory** to `dist`, and **Production Branch** to `main`. These values are project settings; `client/vercel.json` cannot set the root directory or production branch.
+
+4. Ensure SPA fallback routing is enabled (rewriting all non-asset requests to `index.html`).
 
 
 

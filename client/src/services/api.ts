@@ -431,15 +431,6 @@ class ApiService {
     );
   }
 
-  async getPanelLeaderboard(
-    competitionId: string,
-    panelId: string,
-  ): Promise<LeaderboardResult> {
-    return this.request<LeaderboardResult>(
-      `/competitions/${competitionId}/leaderboard/panel/${panelId}`,
-    );
-  }
-
   // --- Participant Portal Endpoints ---
   async getPublicCompetitions(): Promise<{ competitions: PublicCompetition[] }> {
     return this.request<{ competitions: PublicCompetition[] }>("/portal/competitions");

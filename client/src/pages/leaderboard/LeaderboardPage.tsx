@@ -98,18 +98,18 @@ export const LeaderboardPage: React.FC = () => {
     if (!selectedCompetitionId) return;
     try {
       setError(null);
-      let data: LeaderboardResult | null = null;
-      if (selectedPanelFilter !== "all") {
-        data = await api.getPanelLeaderboard(selectedCompetitionId, selectedPanelFilter);
-      } else {
-        data = await api.getRoundLeaderboard(selectedCompetitionId, selectedRound);
-      }
+      const data = await api.getRoundLeaderboard(selectedCompetitionId, selectedRound);
 
       if (!data || !Array.isArray(data.leaderboard)) {
         throw new Error("The leaderboard response was invalid. Please try again.");
       }
 
-      setLeaderboardData(data);
+      const leaderboard =
+        selectedPanelFilter === "all"
+          ? data.leaderboard
+          : data.leaderboard.filter((entry) => entry.panelId === selectedPanelFilter);
+
+      setLeaderboardData({ ...data, leaderboard });
       setLastRefreshedAt(new Date());
     } catch (err: any) {
       setError(err?.message || "Failed to fetch leaderboard data.");
