@@ -64,6 +64,7 @@ interface FakeState {
   connectedUri: string | null;
   disconnected: boolean;
   generatedPasswords: string[];
+  hashCalls: string[];
 }
 
 function cloneUser(user: FakeUser): FakeUser {
@@ -88,6 +89,7 @@ function newState(): FakeState {
     connectedUri: null,
     disconnected: false,
     generatedPasswords: [],
+    hashCalls: [],
   };
 }
 
