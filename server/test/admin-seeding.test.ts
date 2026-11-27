@@ -184,7 +184,10 @@ function createFakeDependencies(
       state.createInputs.push(input);
       return cloneUser(created);
     },
-    hashPassword: async (password) => `hashed:${password}`,
+    hashPassword: async (password) => {
+      state.hashCalls.push(password);
+      return `hashed:${password}`;
+    },
     generatePassword: () => {
       const password = `generated-password-${state.generatedPasswords.length + 1}`;
       state.generatedPasswords.push(password);
