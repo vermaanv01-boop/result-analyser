@@ -502,12 +502,24 @@ export async function seedAdmins(
       byLoginId.set(user.loginId, user);
     }
 
-    const vcAdmin = await resolveVcAdmin(dependencies, byLoginId);
-    const newAdmins = await planNewAdmins(options, dependencies, byLoginId);
+    const usedPasswords = new Set<string>();
+    const vcAdmin = await resolveVcAdmin(
+      options,
+      dependencies,
+      byLoginId,
+      usedPasswords,
+    );
+    const newAdmins = await planNewAdmins(
+      options,
+      dependencies,
+      byLoginId,
+      usedPasswords,
+    );
 
     const plan: SeedPlan = {
       vcAdminUser: vcAdmin.user,
       vcAdminNeedsMigration: vcAdmin.needsMigration,
+      vcAdminBootstrap: vcAdmin.bootstrap,
       creates: newAdmins.creates,
       existingLoginIds: newAdmins.existingLoginIds,
     };
@@ -516,8 +528,14 @@ export async function seedAdmins(
 
     if (!options.apply) {
       dependencies.logger.info(
-        `[seed] Dry run: ${plan.creates.length} new admin(s), ${vcAdmin.needsMigration ? 1 : 0} migration(s), ${plan.existingLoginIds.length} existing admin(s)`,
+        `[seed] Dry run: ${plan.creates.length} new admin(s), ${plan.vcAdminBootstrap ? 1 : 0} bootstrap(s), ${plan.vcAdminNeedsMigration ? 1 : 0} migration(s), ${plan.existingLoginIds.length} existing admin(s)`,
       );
+      if (plan.vcAdminBootstrap) {
+        dependencies.logger.info("[seed] Would bootstrap admin vc-admin in testing");
+      }
+      if (plan.vcAdminNeedsMigration) {
+        dependencies.logger.info("[seed] Would assign loginId vc-admin to existing admin");
+      }
       for (const create of plan.creates) {
         dependencies.logger.info(`[seed] Would create admin ${create.loginId}`);
       }
@@ -532,7 +550,10 @@ export async function seedAdmins(
     const exportPath = await applyPlan(options, dependencies, plan);
     return {
       applied: true,
-      createdLoginIds: plan.creates.map((create) => create.loginId),
+      createdLoginIds: [
+        ...(plan.vcAdminBootstrap ? (["vc-admin"] as const) : []),
+        ...plan.creates.map((create) => create.loginId),
+      ],
       migratedVcAdmin: plan.vcAdminNeedsMigration,
       exportPath,
     };
