@@ -20,25 +20,46 @@ export interface CredentialExport {
   accounts: CredentialRecord[];
 }
 
+export interface RotatedCredentialRecord {
+  loginId: string;
+  email: string;
+  role: "admin";
+  isActive: true;
+  password: string;
+  passwordStatus: "rotated";
+}
+
+export interface PasswordRotationExport {
+  target: "testing";
+  databaseName: string;
+  generatedAt: string;
+  notice: string;
+  accounts: RotatedCredentialRecord[];
+}
+
 function exportFileName(target: SeedTarget, generatedAt: string): string {
   const timestamp = generatedAt.replace(/[:.]/g, "-");
   const suffix = randomBytes(4).toString("hex");
   return `admin-credentials-${target}-${timestamp}-${suffix}.json`;
 }
 
-export async function writeCredentialExport(
-  credentialExport: CredentialExport,
-  baseDir: string = path.join(process.cwd(), ".credentials"),
+function passwordRotationFileName(generatedAt: string): string {
+  const timestamp = generatedAt.replace(/[:.]/g, "-");
+  const suffix = randomBytes(4).toString("hex");
+  return `admin-password-rotation-testing-${timestamp}-${suffix}.json`;
+}
+
+async function writeJsonFileAtomic(
+  value: unknown,
+  baseDir: string,
+  fileName: string,
 ): Promise<string> {
   await mkdir(baseDir, { recursive: true });
 
-  const filePath = path.join(
-    baseDir,
-    exportFileName(credentialExport.target, credentialExport.generatedAt),
-  );
+  const filePath = path.join(baseDir, fileName);
   const tempPath = `${filePath}.${randomBytes(4).toString("hex")}.tmp`;
 
-  await writeFile(tempPath, JSON.stringify(credentialExport, null, 2), {
+  await writeFile(tempPath, JSON.stringify(value, null, 2), {
     encoding: "utf8",
     flag: "wx",
     mode: 0o600,
@@ -52,4 +73,26 @@ export async function writeCredentialExport(
   }
 
   return filePath;
+}
+
+export async function writeCredentialExport(
+  credentialExport: CredentialExport,
+  baseDir: string = path.join(process.cwd(), ".credentials"),
+): Promise<string> {
+  return writeJsonFileAtomic(
+    credentialExport,
+    baseDir,
+    exportFileName(credentialExport.target, credentialExport.generatedAt),
+  );
+}
+
+export async function writePasswordRotationExport(
+  passwordRotationExport: PasswordRotationExport,
+  baseDir: string = path.join(process.cwd(), ".credentials"),
+): Promise<string> {
+  return writeJsonFileAtomic(
+    passwordRotationExport,
+    baseDir,
+    passwordRotationFileName(passwordRotationExport.generatedAt),
+  );
 }

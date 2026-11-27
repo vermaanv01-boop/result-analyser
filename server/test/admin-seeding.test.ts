@@ -11,8 +11,10 @@ import {
   parseSeedOptions,
   type SeedOptions,
 } from "../src/config/seed-target";
+import { User } from "../src/models/user.model";
 import {
   SeedConflictError,
+  createSeedDependencies,
   seedAdmins,
   type SeedDependencies,
   type SeedUser,
@@ -36,6 +38,8 @@ const EXPECTED_NEW_LOGIN_IDS = [
 interface FakeUser extends SeedUser {
   passwordHash: string;
   fullName: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface FakeIndex {
@@ -102,6 +106,8 @@ function legacyAdmin(): FakeUser {
     isActive: true,
     passwordHash: "legacy-password-hash",
     fullName: "Legacy Admin",
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2025-06-01T00:00:00.000Z"),
   };
 }
 
@@ -114,6 +120,8 @@ function existingAdmin(loginId: string, id: string = loginId): FakeUser {
     isActive: true,
     passwordHash: `${loginId}-password-hash`,
     fullName: `${loginId} Admin`,
+    createdAt: new Date("2025-02-01T00:00:00.000Z"),
+    updatedAt: new Date("2025-07-01T00:00:00.000Z"),
   };
 }
 
@@ -179,6 +187,8 @@ function createFakeDependencies(
         isActive: input.isActive,
         passwordHash: input.passwordHash,
         fullName: input.name,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       };
       state.users.push(created);
       state.createInputs.push(input);
@@ -539,13 +549,14 @@ describe("admin seeding", () => {
   it("migrates the legacy admin without changing its other fields", async () => {
     const state = newState();
     const legacy = legacyAdmin();
+    const originalLegacy = cloneUser(legacy);
     state.users.push(
       legacy,
       ...EXPECTED_NEW_LOGIN_IDS.map((loginId) => existingAdmin(loginId)),
     );
 
     const result = await seedAdmins(
-      testingOptions(true),
+      productionOptions(true, PRODUCTION_CONFIRMATION),
       createFakeDependencies(state),
     );
 
@@ -557,16 +568,21 @@ describe("admin seeding", () => {
     assert.equal(state.generatedPasswords.length, 0);
 
     assert.equal(legacy.loginId, "vc-admin");
-    assert.equal(legacy.email, "admin@karvaan.org");
-    assert.equal(legacy.passwordHash, "legacy-password-hash");
-    assert.equal(legacy.fullName, "Legacy Admin");
-    assert.equal(legacy.role, "admin");
-    assert.equal(legacy.isActive, true);
+    assert.equal(legacy.email, originalLegacy.email);
+    assert.equal(legacy.passwordHash, originalLegacy.passwordHash);
+    assert.equal(legacy.fullName, originalLegacy.fullName);
+    assert.equal(legacy.role, originalLegacy.role);
+    assert.equal(legacy.isActive, originalLegacy.isActive);
+    assert.deepEqual(legacy.createdAt, originalLegacy.createdAt);
+    assert.deepEqual(legacy.updatedAt, originalLegacy.updatedAt);
+    assert.deepEqual(legacy, { ...originalLegacy, loginId: "vc-admin" });
 
     const credentialExport = state.exports[0];
     if (!credentialExport) {
       throw new Error("Credential export was not written");
     }
+    assert.equal(credentialExport.target, "production");
+    assert.equal(credentialExport.databaseName, "student_ranking");
     assert.equal(
       credentialExport.accounts.filter(
         (account) => account.passwordStatus === "created",
@@ -577,6 +593,113 @@ describe("admin seeding", () => {
       credentialExport.accounts.find((account) => account.loginId === "vc-admin")
         ?.password,
       null,
+    );
+  });
+
+  it("disables automatic timestamps on the loginId migration update", async () => {
+    const originalFindOneAndUpdate = User.findOneAndUpdate;
+    let captured:
+      | { filter: unknown; update: unknown; options: unknown }
+      | undefined;
+
+    type FakeQuery = {
+      select: () => FakeQuery;
+      lean: () => Promise<SeedUser>;
+    };
+
+    const query: FakeQuery = {
+      select: () => query,
+      lean: async () => ({
+        _id: "legacy-admin",
+        email: "admin@karvaan.org",
+        loginId: "vc-admin",
+        role: "admin",
+        isActive: true,
+      }),
+    };
+
+    const stub = ((filter: unknown, update: unknown, options: unknown) => {
+      captured = { filter, update, options };
+      return query;
+    }) as unknown as typeof User.findOneAndUpdate;
+
+    (User as unknown as { findOneAndUpdate: typeof User.findOneAndUpdate })
+      .findOneAndUpdate = stub;
+
+    try {
+      const dependencies = createSeedDependencies();
+      const updated = await dependencies.setLoginId("legacy-admin", "vc-admin");
+
+      assert.ok(captured);
+      assert.deepEqual(captured.filter, {
+        _id: "legacy-admin",
+        loginId: { $exists: false },
+      });
+      assert.deepEqual(captured.update, { $set: { loginId: "vc-admin" } });
+      assert.deepEqual(captured.options, { new: true, timestamps: false });
+      assert.equal(updated.loginId, "vc-admin");
+    } finally {
+      (User as unknown as { findOneAndUpdate: typeof User.findOneAndUpdate })
+        .findOneAndUpdate = originalFindOneAndUpdate;
+    }
+  });
+
+  it("creates the six production admins without changing preservation behavior", async () => {
+    const state = newState();
+    state.users.push(legacyAdmin());
+    state.indexes = [];
+
+    const result = await seedAdmins(
+      productionOptions(true, PRODUCTION_CONFIRMATION),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, true);
+    assert.equal(result.migratedVcAdmin, true);
+    assert.deepEqual(result.createdLoginIds, [...EXPECTED_NEW_LOGIN_IDS]);
+    assert.equal(state.migrations.length, 1);
+    assert.equal(state.createInputs.length, 6);
+
+    const migrated = state.users.find((user) => user._id === "legacy-admin");
+    assert.ok(migrated);
+    assert.equal(migrated.loginId, "vc-admin");
+    assert.equal(migrated.email, "admin@karvaan.org");
+    assert.equal(migrated.passwordHash, "legacy-password-hash");
+    assert.equal(migrated.role, "admin");
+    assert.equal(migrated.isActive, true);
+    assert.deepEqual(migrated.createdAt, new Date("2025-01-01T00:00:00.000Z"));
+    assert.deepEqual(migrated.updatedAt, new Date("2025-06-01T00:00:00.000Z"));
+
+    for (const input of state.createInputs) {
+      assert.equal(input.role, "admin");
+      assert.equal(input.isActive, true);
+      assert.equal(
+        input.email,
+        `${input.loginId}@production.venturecraft.invalid`,
+      );
+    }
+
+    const credentialExport = state.exports[0];
+    if (!credentialExport) {
+      throw new Error("Credential export was not written");
+    }
+    assert.equal(credentialExport.target, "production");
+    assert.equal(credentialExport.databaseName, "student_ranking");
+    assert.equal(
+      credentialExport.accounts.find((account) => account.loginId === "vc-admin")
+        ?.password,
+      null,
+    );
+    const createdRecords = credentialExport.accounts.filter(
+      (account) => account.passwordStatus === "created",
+    );
+    assert.equal(createdRecords.length, 6);
+    assert.equal(
+      new Set(createdRecords.map((account) => account.password)).size,
+      6,
+    );
+    assert.ok(
+      state.logs.every((line) => !line.includes("generated-password-")),
     );
   });
 
