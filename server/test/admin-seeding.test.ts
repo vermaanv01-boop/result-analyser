@@ -320,7 +320,7 @@ describe("admin seeding", () => {
     assert.equal(state.disconnected, true);
   });
 
-  it("aborts when the legacy admin is missing even if vc-admin already exists", async () => {
+  it("aborts testing bootstrap when vc-admin is already assigned", async () => {
     const state = newState();
     const orphan = existingAdmin("vc-admin", "orphan-vc-admin");
     state.users.push(orphan);
@@ -329,7 +329,7 @@ describe("admin seeding", () => {
       seedAdmins(testingOptions(true), createFakeDependencies(state)),
       (error: unknown) =>
         error instanceof SeedConflictError &&
-        error.message.includes("admin@karvaan.org is missing"),
+        error.message.includes("loginId vc-admin is already assigned"),
     );
 
     assert.equal(orphan.loginId, "vc-admin");
@@ -337,6 +337,7 @@ describe("admin seeding", () => {
     assert.equal(state.exports.length, 0);
     assert.equal(state.migrations.length, 0);
     assert.equal(state.generatedPasswords.length, 0);
+    assert.equal(state.hashCalls.length, 0);
     assert.equal(state.disconnected, true);
   });
 
