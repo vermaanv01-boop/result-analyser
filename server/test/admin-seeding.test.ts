@@ -462,25 +462,52 @@ describe("admin seeding", () => {
     assert.equal(state.migrations.length, 0);
   });
 
-  it("aborts testing bootstrap when vc-admin is already assigned", async () => {
-    const state = newState();
+  it("aborts testing bootstrap on conflicts before any database write", async () => {
+    const loginConflictState = newState();
     const orphan = existingAdmin("vc-admin", "orphan-vc-admin");
-    state.users.push(orphan);
+    loginConflictState.users.push(orphan);
+    loginConflictState.indexes = [];
 
     await assert.rejects(
-      seedAdmins(testingOptions(true), createFakeDependencies(state)),
+      seedAdmins(
+        testingOptions(true),
+        createFakeDependencies(loginConflictState),
+      ),
       (error: unknown) =>
         error instanceof SeedConflictError &&
         error.message.includes("loginId vc-admin is already assigned"),
     );
 
     assert.equal(orphan.loginId, "vc-admin");
-    assert.equal(state.createInputs.length, 0);
-    assert.equal(state.exports.length, 0);
-    assert.equal(state.migrations.length, 0);
-    assert.equal(state.generatedPasswords.length, 0);
-    assert.equal(state.hashCalls.length, 0);
-    assert.equal(state.disconnected, true);
+    assert.equal(loginConflictState.createInputs.length, 0);
+    assert.equal(loginConflictState.exports.length, 0);
+    assert.equal(loginConflictState.migrations.length, 0);
+    assert.equal(loginConflictState.hashCalls.length, 0);
+    assert.equal(loginConflictState.indexes.length, 0);
+    assert.equal(loginConflictState.disconnected, true);
+
+    const emailConflictState = newState();
+    const emailConflict = existingAdmin("vc-other", "email-conflict");
+    emailConflict.email = "vc-anushka@testing.venturecraft.invalid";
+    emailConflictState.users.push(emailConflict);
+    emailConflictState.indexes = [];
+
+    await assert.rejects(
+      seedAdmins(
+        testingOptions(true),
+        createFakeDependencies(emailConflictState),
+      ),
+      (error: unknown) =>
+        error instanceof SeedConflictError &&
+        error.message.includes("Synthetic email for vc-anushka is already used"),
+    );
+
+    assert.equal(emailConflictState.createInputs.length, 0);
+    assert.equal(emailConflictState.exports.length, 0);
+    assert.equal(emailConflictState.migrations.length, 0);
+    assert.equal(emailConflictState.hashCalls.length, 0);
+    assert.equal(emailConflictState.indexes.length, 0);
+    assert.equal(emailConflictState.disconnected, true);
   });
 
   it("aborts when vc-admin belongs to a different account", async () => {
