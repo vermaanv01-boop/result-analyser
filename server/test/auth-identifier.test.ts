@@ -59,6 +59,10 @@ describe("login identifier validation", () => {
       identifier: "vc-admin",
       password: "secret",
     });
+    assert.deepEqual(loginSchema.parse({ identifier: "TEST-TEAM-001", password: "secret" }), {
+      identifier: "TEST-TEAM-001",
+      password: "secret",
+    });
   });
 
   test("accepts legacy email requests", () => {
@@ -160,6 +164,77 @@ describe("login identifier authentication", () => {
     mockFindOne(async () => null);
     const error = await assertApiError(login("vc-admin", CORRECT_PASSWORD), 401);
     assert.equal(error.message, "Invalid identifier or password");
+  });
+});
+
+describe("participant login identifiers", () => {
+  const PARTICIPANT_EMAIL = "test-team-001@testing.venturecraft.invalid";
+  const PARTICIPANT_LOGIN_ID = "test-team-001";
+
+  async function createParticipantRecord(
+    overrides: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    return createUserRecord({
+      name: "TEST-TEAM-001",
+      email: PARTICIPANT_EMAIL,
+      loginId: PARTICIPANT_LOGIN_ID,
+      role: "participant",
+      ...overrides,
+    });
+  }
+
+  test("authenticates a participant by email", async () => {
+    const user = await createParticipantRecord();
+    let capturedFilter: QueryFilter | undefined;
+    mockFindOne(async (filter) => {
+      capturedFilter = filter;
+      return user;
+    });
+
+    const result = await login(PARTICIPANT_EMAIL.toUpperCase(), CORRECT_PASSWORD);
+
+    assert.equal(result.user.role, "participant");
+    assert.equal(result.user.email, PARTICIPANT_EMAIL);
+    assert.ok(result.token);
+    assert.deepEqual(capturedFilter?.$or, [
+      { email: PARTICIPANT_EMAIL },
+      { loginId: PARTICIPANT_EMAIL },
+    ]);
+  });
+
+  test("authenticates a participant by login ID using backend normalization", async () => {
+    const user = await createParticipantRecord();
+    let capturedFilter: QueryFilter | undefined;
+    mockFindOne(async (filter) => {
+      capturedFilter = filter;
+      return user;
+    });
+
+    const result = await login("  TEST-TEAM-001  ", CORRECT_PASSWORD);
+
+    assert.equal(result.user.role, "participant");
+    assert.equal(result.user.email, PARTICIPANT_EMAIL);
+    assert.ok(result.token);
+    assert.deepEqual(capturedFilter?.$or, [
+      { email: PARTICIPANT_LOGIN_ID },
+      { loginId: PARTICIPANT_LOGIN_ID },
+    ]);
+  });
+
+  test("rejects invalid participant credentials", async () => {
+    mockFindOne(async () => createParticipantRecord());
+
+    const error = await assertApiError(login("TEST-TEAM-001", "wrong-password"), 401);
+
+    assert.equal(error.message, "Invalid identifier or password");
+  });
+
+  test("rejects inactive participant accounts", async () => {
+    mockFindOne(async () => createParticipantRecord({ isActive: false }));
+
+    const error = await assertApiError(login("TEST-TEAM-001", CORRECT_PASSWORD), 403);
+
+    assert.equal(error.message, "Account is deactivated");
   });
 });
 

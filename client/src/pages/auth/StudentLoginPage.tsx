@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 
 export const StudentLoginPage: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,15 +25,10 @@ export const StudentLoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    const normalizedEmail = email.trim();
+    const normalizedIdentifier = identifier.trim().toLowerCase();
 
-    if (!normalizedEmail) {
-      setError("Please enter your student email address.");
-      return;
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-      setError("Please enter a valid email address.");
+    if (!normalizedIdentifier) {
+      setError("Please enter your email address or login ID.");
       return;
     }
 
@@ -45,7 +40,7 @@ export const StudentLoginPage: React.FC = () => {
     setSubmitting(true);
 
     try {
-      const user = await login(normalizedEmail, password);
+      const user = await login(normalizedIdentifier, password);
 
       if (user.role !== "participant") {
         logout();
@@ -183,7 +178,7 @@ export const StudentLoginPage: React.FC = () => {
         <form onSubmit={handleSubmit} style={{ textAlign: "left" }} noValidate>
           <div style={{ marginBottom: "18px" }}>
             <label
-              htmlFor="student-email"
+              htmlFor="student-identifier"
               style={{
                 display: "block",
                 fontSize: "13px",
@@ -192,15 +187,15 @@ export const StudentLoginPage: React.FC = () => {
                 marginBottom: "6px",
               }}
             >
-              Email Address
+              Email Address or Login ID
             </label>
             <input
-              id="student-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="student@university.edu"
-              autoComplete="email"
+              id="student-identifier"
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="student@university.edu or TEST-TEAM-001"
+              autoComplete="username"
               required
               autoFocus
               disabled={submitting}
