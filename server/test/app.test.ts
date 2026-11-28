@@ -2,6 +2,8 @@ import { strict as assert } from "node:assert";
 import { after, before, describe, test } from "node:test";
 import type { Express } from "express";
 import { createApp } from "../src/app";
+import { User } from "../src/models/user.model";
+import { signToken } from "../src/services/auth.service";
 import { ERROR_CODES } from "../src/utils/api-error";
 
 let baseUrl = "";
@@ -172,6 +174,35 @@ describe("judge portal routing", (): void => {
     assert.equal(response.status, 401);
     const error = json["error"] as Record<string, unknown>;
     assert.equal(error["code"], ERROR_CODES.UNAUTHORIZED);
+  });
+
+  test("rejects participant tokens on judge endpoints", async (): Promise<void> => {
+    const originalFindById = User.findById;
+    (User as unknown as { findById: unknown }).findById = async () => ({
+      _id: { toString: () => "507f1f77bcf86cd799439011" },
+      email: "test-team-001@testing.venturecraft.invalid",
+      name: "TEST-TEAM-001",
+      role: "participant",
+      isActive: true,
+    });
+
+    try {
+      const token = signToken({
+        sub: "507f1f77bcf86cd799439011",
+        email: "test-team-001@testing.venturecraft.invalid",
+        role: "participant",
+      });
+      const response = await fetch(`${baseUrl}/api/v1/judge/panels`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = (await response.json()) as Record<string, unknown>;
+
+      assert.equal(response.status, 403);
+      const error = json["error"] as Record<string, unknown>;
+      assert.equal(error["code"], ERROR_CODES.FORBIDDEN);
+    } finally {
+      (User as unknown as { findById: unknown }).findById = originalFindById;
+    }
   });
 });
 

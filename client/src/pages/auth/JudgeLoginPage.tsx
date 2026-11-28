@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { VentureCraftLogo } from "../../components/common/VentureCraftLogo";
 
 export const JudgeLoginPage: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,15 +25,10 @@ export const JudgeLoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    const normalizedEmail = email.trim();
+    const normalizedIdentifier = identifier.trim().toLowerCase();
 
-    if (!normalizedEmail) {
-      setError("Please enter your judge email address.");
-      return;
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-      setError("Please enter a valid email address.");
+    if (!normalizedIdentifier) {
+      setError("Please enter your email address or login ID.");
       return;
     }
 
@@ -45,9 +40,9 @@ export const JudgeLoginPage: React.FC = () => {
     setSubmitting(true);
 
     try {
-      const user = await login(normalizedEmail, password);
+      const user = await login(normalizedIdentifier, password);
 
-      if (user.role !== "judge") {
+      if (user.role !== "judge" || !user.isActive) {
         logout();
         setError(
           "This account does not have judge access. Please use the general sign-in page for administrator or participant accounts.",
@@ -183,7 +178,7 @@ export const JudgeLoginPage: React.FC = () => {
         <form onSubmit={handleSubmit} style={{ textAlign: "left" }} noValidate>
           <div style={{ marginBottom: "18px" }}>
             <label
-              htmlFor="judge-email"
+              htmlFor="judge-identifier"
               style={{
                 display: "block",
                 fontSize: "13px",
@@ -192,15 +187,15 @@ export const JudgeLoginPage: React.FC = () => {
                 marginBottom: "6px",
               }}
             >
-              Email Address
+              Email Address or Login ID
             </label>
             <input
-              id="judge-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="judge@venturecraft.org"
-              autoComplete="email"
+              id="judge-identifier"
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="judge@venturecraft.org or TEST-JDG-001"
+              autoComplete="username"
               required
               autoFocus
               disabled={submitting}

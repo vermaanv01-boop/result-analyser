@@ -238,6 +238,79 @@ describe("participant login identifiers", () => {
   });
 });
 
+describe("judge login identifiers", () => {
+  const JUDGE_EMAIL = "test-jdg-001@testing.venturecraft.invalid";
+  const JUDGE_LOGIN_ID = "test-jdg-001";
+
+  async function createJudgeRecord(
+    overrides: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    return createUserRecord({
+      name: "TEST-JDG-001",
+      email: JUDGE_EMAIL,
+      loginId: JUDGE_LOGIN_ID,
+      role: "judge",
+      ...overrides,
+    });
+  }
+
+  test("authenticates a judge by email", async () => {
+    const user = await createJudgeRecord();
+    let capturedFilter: QueryFilter | undefined;
+    mockFindOne(async (filter) => {
+      capturedFilter = filter;
+      return user;
+    });
+
+    const result = await login(JUDGE_EMAIL.toUpperCase(), CORRECT_PASSWORD);
+
+    assert.equal(result.user.role, "judge");
+    assert.equal(result.user.email, JUDGE_EMAIL);
+    assert.equal(result.user.isActive, true);
+    assert.ok(result.token);
+    assert.deepEqual(capturedFilter?.$or, [
+      { email: JUDGE_EMAIL },
+      { loginId: JUDGE_EMAIL },
+    ]);
+  });
+
+  test("authenticates TEST-JDG-001 by login ID using backend normalization", async () => {
+    const user = await createJudgeRecord();
+    let capturedFilter: QueryFilter | undefined;
+    mockFindOne(async (filter) => {
+      capturedFilter = filter;
+      return user;
+    });
+
+    const result = await login("  TEST-JDG-001  ", CORRECT_PASSWORD);
+
+    assert.equal(result.user.role, "judge");
+    assert.equal(result.user.email, JUDGE_EMAIL);
+    assert.equal(result.user.isActive, true);
+    assert.ok(result.token);
+    assert.deepEqual(capturedFilter?.$or, [
+      { email: JUDGE_LOGIN_ID },
+      { loginId: JUDGE_LOGIN_ID },
+    ]);
+  });
+
+  test("rejects invalid judge credentials", async () => {
+    mockFindOne(async () => createJudgeRecord());
+
+    const error = await assertApiError(login("TEST-JDG-001", "wrong-password"), 401);
+
+    assert.equal(error.message, "Invalid identifier or password");
+  });
+
+  test("rejects inactive judge accounts", async () => {
+    mockFindOne(async () => createJudgeRecord({ isActive: false }));
+
+    const error = await assertApiError(login("TEST-JDG-001", CORRECT_PASSWORD), 403);
+
+    assert.equal(error.message, "Account is deactivated");
+  });
+});
+
 describe("login ID provisioning", () => {
   test("rejects duplicate login IDs before creating a user", async () => {
     const filtered: QueryFilter[] = [];
