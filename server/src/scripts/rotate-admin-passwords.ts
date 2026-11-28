@@ -5,7 +5,7 @@ import {
   SeedConfigError,
   assertConnectedDatabaseName,
   databaseNameFromUri,
-  parseSeedOptions,
+  type SeedTarget,
 } from "../config/seed-target";
 import { User } from "../models/user.model";
 import { hashPassword } from "../services/auth.service";
@@ -27,43 +27,17 @@ export const ROTATION_LOGIN_IDS = [
 
 export type RotationLoginId = (typeof ROTATION_LOGIN_IDS)[number];
 
-export const PASSPHRASE_WORD_COUNT = 6;
-export const PASSPHRASE_DIGIT_COUNT = 3;
+export const PRODUCTION_ROTATION_CONFIRMATION = "ROTATE PRODUCTION ADMIN PASSWORDS";
 
-export const PASSWORD_WORDS = [
-  "amber", "anchor", "apple", "arbor", "atlas", "aurora", "autumn", "avenue",
-  "badge", "basket", "beacon", "birch", "blossom", "breeze", "bridge", "brook",
-  "canyon", "cedar", "chart", "cherry", "circle", "clarity", "clover", "cobalt",
-  "comet", "coral", "cotton", "cradle", "crest", "crystal", "cupcake", "dahlia",
-  "dawn", "delta", "denim", "desert", "diamond", "dolphin", "dragon", "drizzle",
-  "eagle", "ember", "emerald", "engine", "evening", "fabric", "falcon", "fern",
-  "field", "forest", "fossil", "fountain", "garden", "garlic", "glacier", "globe",
-  "golden", "granite", "grape", "harbor", "harmony", "harp", "hazel", "helix",
-  "horizon", "island", "ivory", "jade", "jungle", "kernel", "lantern", "lava",
-  "lemon", "lilac", "limestone", "lobster", "maple", "marble", "meadow", "melody",
-  "memory", "mercury", "meteor", "mirror", "mist", "mountain", "mushroom", "nectar",
-  "needle", "neon", "nest", "noble", "north", "ocean", "olive", "orbit",
-  "orchid", "otter", "palette", "paper", "parcel", "passenger", "path", "pebble",
-  "pearl", "pepper", "pine", "plateau", "plum", "prairie", "pulse", "puzzle",
-  "quartz", "quiet", "rainbow", "raven", "river", "robin", "rocket", "rose",
-  "ruby", "saddle", "sage", "sand", "saturn", "silver", "slate", "snow",
-  "solar", "sparrow", "spring", "stable", "star", "stone", "storm", "sunflower",
-  "sunset", "swan", "tablet", "tapestry", "temple", "thistle", "thunder", "timber",
-  "tulip", "valley", "velvet", "violet", "voyage", "walnut", "waterfall", "willow",
-  "winter", "wonder", "yellow", "zephyr", "zircon", "acorn", "almond", "amethyst",
-  "anise", "apricot", "basil", "beaker", "bell", "berry", "blanket", "bloom",
-  "brick", "bronze", "bubble", "bucket", "butterfly", "camera", "candle", "caramel",
-  "cardinal", "carnation", "cascade", "castle", "cavern", "cello", "chalk", "charm",
-  "cheese", "chestnut", "chimney", "cinnamon", "circus", "citrine", "coconut", "coffee",
-  "compass", "copper", "cosmos", "dandelion", "deck", "dictionary", "dimple", "dungeon",
-  "echo", "eclipse", "elephant", "ellipse", "fan", "feather", "ferry", "fig",
-  "filter", "finch", "flame", "flask", "flute", "fog", "fuel", "galaxy",
-  "game", "gardenia", "gate", "ginger", "giraffe", "glass", "glow", "goose",
-  "guitar", "hammock", "helmet", "hill", "honey", "hope", "hummingbird", "ink",
-  "iris", "jacket", "jelly", "jewel", "journey", "kettle", "kite", "ladder",
-  "lagoon", "lamp", "leaf", "library", "lightning", "lily", "magnet", "magnolia",
-  "majestic", "mango", "mosaic", "moss", "motor", "muffin", "napkin", "night",
-] as const;
+export const PASSWORD_ALPHABETIC_COUNT = 3;
+export const PASSWORD_DIGIT_COUNT = 3;
+export const PASSWORD_SPECIAL_COUNT = 1;
+export const PASSWORD_LENGTH =
+  PASSWORD_ALPHABETIC_COUNT + PASSWORD_DIGIT_COUNT + PASSWORD_SPECIAL_COUNT;
+export const PASSWORD_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+export const PASSWORD_DIGITS = "0123456789";
+export const PASSWORD_SPECIAL_CHARACTERS = "!@#$%^&*";
 
 const ROTATION_LOGIN_ID_SET: ReadonlySet<string> = new Set<string>(
   ROTATION_LOGIN_IDS,
@@ -87,10 +61,11 @@ export class RotationConflictError extends Error {
 }
 
 export interface RotationOptions {
-  target: "testing";
+  target: SeedTarget;
   databaseName: string;
   uri: string;
   apply: boolean;
+  confirmation: string | undefined;
 }
 
 export interface RotationUser {
@@ -129,110 +104,213 @@ export interface RotationResult {
   exportPath: string | null;
 }
 
+interface ParsedRotationArguments {
+  target: string | undefined;
+  apply: boolean;
+  confirmation: string | undefined;
+}
+
 function isValidRandomIndex(index: number, maxExclusive: number): boolean {
   return Number.isInteger(index) && index >= 0 && index < maxExclusive;
 }
 
-export function generatePassphrase(randomInt: RandomInt = secureRandomInt): string {
-  const words: string[] = [];
-
-  for (let index = 0; index < PASSPHRASE_WORD_COUNT; index += 1) {
-    const wordIndex = randomInt(PASSWORD_WORDS.length);
-    if (!isValidRandomIndex(wordIndex, PASSWORD_WORDS.length)) {
-      throw new RotationConflictError("Random word index was invalid");
-    }
-    const word = PASSWORD_WORDS[wordIndex];
-    if (!word) {
-      throw new RotationConflictError("Random word selection failed");
-    }
-    words.push(word);
+function randomCharacter(characters: string, randomInt: RandomInt): string {
+  const index = randomInt(characters.length);
+  if (!isValidRandomIndex(index, characters.length)) {
+    throw new RotationConflictError("Random character index was invalid");
   }
-
-  const digits: string[] = [];
-  for (let index = 0; index < PASSPHRASE_DIGIT_COUNT; index += 1) {
-    const digit = randomInt(10);
-    if (!isValidRandomIndex(digit, 10)) {
-      throw new RotationConflictError("Random digit was invalid");
-    }
-    digits.push(String(digit));
+  const character = characters[index];
+  if (!character) {
+    throw new RotationConflictError("Random character selection failed");
   }
-
-  return `${words.join("-")}-${digits.join("")}`;
+  return character;
 }
 
-export function generateUniquePassphrases(
+function shuffleCharacters(
+  characters: string[],
+  randomInt: RandomInt,
+): string[] {
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1);
+    if (!isValidRandomIndex(swapIndex, index + 1)) {
+      throw new RotationConflictError("Random shuffle index was invalid");
+    }
+    const current = characters[index];
+    const swap = characters[swapIndex];
+    if (current === undefined || swap === undefined) {
+      throw new RotationConflictError("Random shuffle failed");
+    }
+    characters[index] = swap;
+    characters[swapIndex] = current;
+  }
+  return characters;
+}
+
+export function generatePassword(
+  randomInt: RandomInt = secureRandomInt,
+): string {
+  const characters: string[] = [];
+
+  for (let index = 0; index < PASSWORD_ALPHABETIC_COUNT; index += 1) {
+    characters.push(randomCharacter(PASSWORD_ALPHABET, randomInt));
+  }
+  for (let index = 0; index < PASSWORD_DIGIT_COUNT; index += 1) {
+    characters.push(randomCharacter(PASSWORD_DIGITS, randomInt));
+  }
+  for (let index = 0; index < PASSWORD_SPECIAL_COUNT; index += 1) {
+    characters.push(randomCharacter(PASSWORD_SPECIAL_CHARACTERS, randomInt));
+  }
+
+  return shuffleCharacters(characters, randomInt).join("");
+}
+
+export function generateUniquePasswords(
   count: number,
   randomInt: RandomInt = secureRandomInt,
 ): string[] {
-  const passphrases = new Set<string>();
+  const passwords = new Set<string>();
 
   for (let index = 0; index < count; index += 1) {
     let generated: string | undefined;
     for (let attempt = 0; attempt < 100; attempt += 1) {
-      const candidate = generatePassphrase(randomInt);
-      if (!passphrases.has(candidate)) {
+      const candidate = generatePassword(randomInt);
+      if (!passwords.has(candidate)) {
         generated = candidate;
         break;
       }
     }
     if (!generated) {
       throw new RotationConflictError(
-        "Unable to generate unique admin passphrases",
+        "Unable to generate unique admin passwords",
       );
     }
-    passphrases.add(generated);
+    passwords.add(generated);
   }
 
-  return [...passphrases];
+  return [...passwords];
+}
+
+function readValue(
+  args: readonly string[],
+  index: number,
+  flag: string,
+): string {
+  const value = args[index];
+  if (value === undefined || value.startsWith("--")) {
+    throw new SeedConfigError(`${flag} requires a value`);
+  }
+  return value;
+}
+
+function parseArguments(args: readonly string[]): ParsedRotationArguments {
+  const parsed: ParsedRotationArguments = {
+    target: undefined,
+    apply: false,
+    confirmation: undefined,
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) {
+      break;
+    }
+
+    if (arg === "--apply") {
+      if (parsed.apply) {
+        throw new SeedConfigError("--apply was provided more than once");
+      }
+      parsed.apply = true;
+      continue;
+    }
+
+    if (arg === "--target" || arg.startsWith("--target=")) {
+      if (parsed.target !== undefined) {
+        throw new SeedConfigError("--target was provided more than once");
+      }
+      parsed.target =
+        arg === "--target"
+          ? readValue(args, index + 1, "--target")
+          : arg.slice("--target=".length);
+      if (arg === "--target") {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (arg === "--confirm" || arg.startsWith("--confirm=")) {
+      if (parsed.confirmation !== undefined) {
+        throw new SeedConfigError("--confirm was provided more than once");
+      }
+      parsed.confirmation =
+        arg === "--confirm"
+          ? readValue(args, index + 1, "--confirm")
+          : arg.slice("--confirm=".length);
+      if (arg === "--confirm") {
+        index += 1;
+      }
+      continue;
+    }
+
+    throw new SeedConfigError(`Unknown argument: ${arg}`);
+  }
+
+  return parsed;
+}
+
+export function assertRotationOptions(options: RotationOptions): void {
+  if (options.target !== "testing" && options.target !== "production") {
+    throw new SeedConfigError("--target must be either testing or production");
+  }
+
+  const targetConfig = SEED_TARGETS[options.target];
+  if (options.databaseName !== targetConfig.databaseName) {
+    throw new SeedConfigError(
+      `${options.target} databaseName must be ${targetConfig.databaseName}, received ${options.databaseName}`,
+    );
+  }
+
+  const uriDatabaseName = databaseNameFromUri(options.uri);
+  if (uriDatabaseName !== targetConfig.databaseName) {
+    throw new SeedConfigError(
+      `${targetConfig.uriEnv} must target ${targetConfig.databaseName}, received ${uriDatabaseName}`,
+    );
+  }
+
+  if (
+    options.target === "production" &&
+    options.confirmation !== PRODUCTION_ROTATION_CONFIRMATION
+  ) {
+    throw new SeedConfigError(
+      `Production password rotation requires --confirm "${PRODUCTION_ROTATION_CONFIRMATION}"`,
+    );
+  }
 }
 
 export function parseRotationOptions(
   args: readonly string[],
   env: Record<string, string | undefined>,
 ): RotationOptions {
-  let apply = false;
+  const parsed = parseArguments(args);
 
-  for (const arg of args) {
-    if (arg === "--apply") {
-      if (apply) {
-        throw new SeedConfigError("--apply was provided more than once");
-      }
-      apply = true;
-      continue;
-    }
-
-    if (arg === "--target" || arg.startsWith("--target=")) {
-      throw new SeedConfigError(
-        "Password rotation only supports the testing target; do not pass --target",
-      );
-    }
-
-    throw new SeedConfigError(`Unknown argument: ${arg}`);
+  if (parsed.target !== "testing" && parsed.target !== "production") {
+    throw new SeedConfigError("--target must be either testing or production");
   }
 
-  const testing = parseSeedOptions(["--target", "testing"], env);
-  return {
-    target: "testing",
-    databaseName: testing.databaseName,
-    uri: testing.uri,
-    apply,
+  const targetConfig = SEED_TARGETS[parsed.target];
+  const uri = env[targetConfig.uriEnv]?.trim();
+  if (!uri) {
+    throw new SeedConfigError(`${targetConfig.uriEnv} is required`);
+  }
+
+  const options: RotationOptions = {
+    target: parsed.target,
+    databaseName: targetConfig.databaseName,
+    uri,
+    apply: parsed.apply,
+    confirmation: parsed.confirmation,
   };
-}
-
-function assertTestingOptions(options: RotationOptions): void {
-  if (
-    options.target !== "testing" ||
-    options.databaseName !== SEED_TARGETS.testing.databaseName
-  ) {
-    throw new SeedConfigError("Password rotation only supports the testing target");
-  }
-
-  const uriDatabaseName = databaseNameFromUri(options.uri);
-  if (uriDatabaseName !== SEED_TARGETS.testing.databaseName) {
-    throw new SeedConfigError(
-      `TESTING_MONGODB_URI must target ${SEED_TARGETS.testing.databaseName}, received ${uriDatabaseName}`,
-    );
-  }
+  assertRotationOptions(options);
+  return options;
 }
 
 function validateRotationAccounts(
@@ -276,7 +354,7 @@ function validateRotationAccounts(
 function buildPasswordRotationExport(
   options: RotationOptions,
   accounts: ReadonlyMap<RotationLoginId, RotationUser>,
-  passphrases: readonly string[],
+  passwords: readonly string[],
   generatedAt: Date,
 ): PasswordRotationExport {
   const records = ROTATION_LOGIN_IDS.map((loginId, index) => {
@@ -286,10 +364,10 @@ function buildPasswordRotationExport(
         `Missing admin account ${loginId} for credential export`,
       );
     }
-    const password = passphrases[index];
+    const password = passwords[index];
     if (!password) {
       throw new RotationConflictError(
-        `Missing generated passphrase for ${loginId}`,
+        `Missing generated password for ${loginId}`,
       );
     }
 
@@ -304,11 +382,10 @@ function buildPasswordRotationExport(
   });
 
   return {
-    target: "testing",
+    target: options.target,
     databaseName: options.databaseName,
     generatedAt: generatedAt.toISOString(),
-    notice:
-      "Passwords were rotated for all listed testing admin accounts. Store this file securely and delete it after use.",
+    notice: `Passwords were rotated for all listed ${options.target} admin accounts. Store this file securely and delete it after use.`,
     accounts: records,
   };
 }
@@ -317,14 +394,14 @@ export async function rotateAdminPasswords(
   options: RotationOptions,
   dependencies: RotationDependencies,
 ): Promise<RotationResult> {
-  assertTestingOptions(options);
+  assertRotationOptions(options);
 
   const connection = await dependencies.connect(options.uri);
 
   try {
     assertConnectedDatabaseName(connection.name, options.databaseName);
     dependencies.logger.info(
-      `[rotate] target=testing database=${options.databaseName} mode=${options.apply ? "apply" : "dry-run"}`,
+      `[rotate] target=${options.target} database=${options.databaseName} mode=${options.apply ? "apply" : "dry-run"}`,
     );
 
     const accounts = await dependencies.findRotationAccounts(ROTATION_LOGIN_IDS);
@@ -332,7 +409,7 @@ export async function rotateAdminPasswords(
 
     if (!options.apply) {
       dependencies.logger.info(
-        "[rotate] Dry run: 7 admin accounts validated; no passwords generated, no export written, and no database changes made",
+        `[rotate] Dry run: ${ROTATION_LOGIN_IDS.length} admin accounts validated; no passwords generated, no export written, and no database changes made`,
       );
       return {
         applied: false,
@@ -341,20 +418,20 @@ export async function rotateAdminPasswords(
       };
     }
 
-    const passphrases = generateUniquePassphrases(
+    const passwords = generateUniquePasswords(
       ROTATION_LOGIN_IDS.length,
       dependencies.randomInt,
     );
     const passwordHashes: string[] = [];
 
-    for (const passphrase of passphrases) {
-      passwordHashes.push(await dependencies.hashPassword(passphrase));
+    for (const password of passwords) {
+      passwordHashes.push(await dependencies.hashPassword(password));
     }
 
     const exportData = buildPasswordRotationExport(
       options,
       accountsByLoginId,
-      passphrases,
+      passwords,
       dependencies.now(),
     );
     const exportPath = await dependencies.writeExport(exportData);

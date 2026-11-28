@@ -7,6 +7,7 @@ import {
   Participant,
   type ParticipantDocument,
 } from "../models/participant.model";
+import type { AuthenticatedUser } from "../types/auth.types";
 import type { RoundIdentifier } from "../types/domain.types";
 import { ApiError } from "../utils/api-error";
 import { generateUniqueRegistrationId } from "../utils/registration-id";
@@ -106,6 +107,57 @@ export async function getParticipants(
   return Participant.find(query)
     .populate("panel", "name isActive")
     .sort({ registrationId: 1 });
+}
+
+function getReferenceId(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "object" && "_id" in value) {
+    return String((value as { _id: unknown })._id);
+  }
+  return String(value);
+}
+
+export async function assertParticipantDetailAccess(
+  principal: AuthenticatedUser,
+  participant: ParticipantDocument,
+): Promise<void> {
+  const competitionId = getReferenceId(participant.competition);
+  const panelId = getReferenceId(participant.panel);
+
+  if (principal.role === "admin") {
+    return;
+  }
+
+  if (principal.role === "participant") {
+    const ownerId = getReferenceId(participant.user);
+    if (!ownerId || ownerId !== principal.id) {
+      throw ApiError.notFound("Participant not found for this competition");
+    }
+    return;
+  }
+
+  if (principal.role === "judge") {
+    if (!panelId || !competitionId) {
+      throw ApiError.notFound("Participant not found for this competition");
+    }
+
+    const panel = await Panel.findById(panelId);
+    if (!panel || getReferenceId(panel.competition) !== competitionId) {
+      throw ApiError.notFound("Participant not found for this competition");
+    }
+
+    const isAssigned = panel.judges.some(
+      (judgeId) => getReferenceId(judgeId) === principal.id,
+    );
+    if (!isAssigned) {
+      throw ApiError.forbidden("Judge is not assigned to this panel");
+    }
+    return;
+  }
+
+  throw ApiError.forbidden("Access denied");
 }
 
 export async function getParticipantById(

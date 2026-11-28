@@ -30,11 +30,31 @@ export interface RotatedCredentialRecord {
 }
 
 export interface PasswordRotationExport {
-  target: "testing";
+  target: SeedTarget;
   databaseName: string;
   generatedAt: string;
   notice: string;
   accounts: RotatedCredentialRecord[];
+}
+
+export interface TestingAccountCredentialRecord {
+  loginId: string;
+  email: string;
+  role: "judge" | "participant";
+  isActive: true;
+  registrationId: string | null;
+  password: string;
+  passwordStatus: "created";
+}
+
+export interface TestingAccountExport {
+  target: "testing";
+  databaseName: string;
+  competitionId: string;
+  panelName: string;
+  generatedAt: string;
+  notice: string;
+  accounts: TestingAccountCredentialRecord[];
 }
 
 function exportFileName(target: SeedTarget, generatedAt: string): string {
@@ -43,10 +63,19 @@ function exportFileName(target: SeedTarget, generatedAt: string): string {
   return `admin-credentials-${target}-${timestamp}-${suffix}.json`;
 }
 
-function passwordRotationFileName(generatedAt: string): string {
+function passwordRotationFileName(
+  target: SeedTarget,
+  generatedAt: string,
+): string {
   const timestamp = generatedAt.replace(/[:.]/g, "-");
   const suffix = randomBytes(4).toString("hex");
-  return `admin-password-rotation-testing-${timestamp}-${suffix}.json`;
+  return `admin-password-rotation-${target}-${timestamp}-${suffix}.json`;
+}
+
+function testingAccountFileName(generatedAt: string): string {
+  const timestamp = generatedAt.replace(/[:.]/g, "-");
+  const suffix = randomBytes(4).toString("hex");
+  return `testing-accounts-testing-${timestamp}-${suffix}.json`;
 }
 
 async function writeJsonFileAtomic(
@@ -93,6 +122,20 @@ export async function writePasswordRotationExport(
   return writeJsonFileAtomic(
     passwordRotationExport,
     baseDir,
-    passwordRotationFileName(passwordRotationExport.generatedAt),
+    passwordRotationFileName(
+      passwordRotationExport.target,
+      passwordRotationExport.generatedAt,
+    ),
+  );
+}
+
+export async function writeTestingAccountExport(
+  testingAccountExport: TestingAccountExport,
+  baseDir: string = path.join(process.cwd(), ".credentials"),
+): Promise<string> {
+  return writeJsonFileAtomic(
+    testingAccountExport,
+    baseDir,
+    testingAccountFileName(testingAccountExport.generatedAt),
   );
 }

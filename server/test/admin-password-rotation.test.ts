@@ -1,21 +1,27 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import {
   SeedConfigError,
   assertConnectedDatabaseName,
   databaseNameFromUri,
 } from "../src/config/seed-target";
 import {
-  PASSPHRASE_DIGIT_COUNT,
-  PASSPHRASE_WORD_COUNT,
-  PASSWORD_WORDS,
+  PASSWORD_ALPHABET,
+  PASSWORD_ALPHABETIC_COUNT,
+  PASSWORD_DIGITS,
+  PASSWORD_DIGIT_COUNT,
+  PASSWORD_LENGTH,
+  PASSWORD_SPECIAL_CHARACTERS,
+  PASSWORD_SPECIAL_COUNT,
+  PRODUCTION_ROTATION_CONFIRMATION,
   ROTATION_LOGIN_IDS,
   RotationConflictError,
-  generatePassphrase,
-  generateUniquePassphrases,
+  generatePassword,
+  generateUniquePasswords,
   parseRotationOptions,
   rotateAdminPasswords,
   type RandomInt,
@@ -29,12 +35,15 @@ import {
   type PasswordRotationExport,
 } from "../src/utils/credential-export";
 
-const TESTING_URI = "mongodb://localhost:27017/venture_craft_testing";
-const PRODUCTION_URI = "mongodb://localhost:27017/student_ranking";
+const TESTING_DB = "venture_craft_testing";
+const PRODUCTION_DB = "student_ranking";
+const TESTING_URI = `mongodb://localhost:27017/${TESTING_DB}`;
+const PRODUCTION_URI = `mongodb://localhost:27017/${PRODUCTION_DB}`;
 
 interface FakeUser extends RotationUser {
   passwordHash: string;
   fullName: string;
+  createdAt: Date;
 }
 
 interface FakeState {
@@ -47,13 +56,24 @@ interface FakeState {
   exportPath: string;
   updates: Array<{ id: unknown; loginId: string; passwordHash: string }>;
   connectedUri: string | null;
+  connectedDatabaseName: string | null;
   disconnected: boolean;
   failExport: Error | null;
   failUpdateAt: number | null;
 }
 
+function env(
+  overrides: Record<string, string | undefined> = {},
+): Record<string, string | undefined> {
+  return {
+    TESTING_MONGODB_URI: TESTING_URI,
+    PRODUCTION_MONGODB_URI: PRODUCTION_URI,
+    ...overrides,
+  };
+}
+
 function cloneUser(user: FakeUser): FakeUser {
-  return { ...user };
+  return { ...user, createdAt: new Date(user.createdAt.getTime()) };
 }
 
 function newState(): FakeState {
@@ -67,6 +87,7 @@ function newState(): FakeState {
     exportPath: "/tmp/admin-password-rotation-testing.json",
     updates: [],
     connectedUri: null,
+    connectedDatabaseName: null,
     disconnected: false,
     failExport: null,
     failUpdateAt: null,
@@ -88,19 +109,53 @@ function makeUser(loginId: RotationLoginId): FakeUser {
     isActive: true,
     passwordHash: `old-hash-${loginId}`,
     fullName: `${loginId} Admin`,
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
   };
+}
+
+function makeNonAdminUsers(): FakeUser[] {
+  return [
+    {
+      _id: "id-vc-judge",
+      loginId: "vc-judge",
+      email: "judge@testing.venturecraft.invalid",
+      role: "judge",
+      isActive: true,
+      passwordHash: "old-hash-judge",
+      fullName: "Test Judge",
+      createdAt: new Date("2025-02-01T00:00:00.000Z"),
+    },
+    {
+      _id: "id-vc-participant",
+      loginId: "vc-participant",
+      email: "participant@testing.venturecraft.invalid",
+      role: "participant",
+      isActive: true,
+      passwordHash: "old-hash-participant",
+      fullName: "Test Participant",
+      createdAt: new Date("2025-03-01T00:00:00.000Z"),
+    },
+  ];
 }
 
 function seedAllAccounts(state: FakeState): void {
   state.users.push(...ROTATION_LOGIN_IDS.map(makeUser));
 }
 
-function getUser(state: FakeState, loginId: RotationLoginId): FakeUser {
+function seedNonAdminAccounts(state: FakeState): void {
+  state.users.push(...makeNonAdminUsers());
+}
+
+function getUser(state: FakeState, loginId: string): FakeUser {
   const user = state.users.find((candidate) => candidate.loginId === loginId);
   if (!user) {
     throw new Error(`Missing fake user ${loginId}`);
   }
   return user;
+}
+
+function snapshotUsers(state: FakeState): FakeUser[] {
+  return state.users.map(cloneUser);
 }
 
 function sequentialRandom(start: number = 0): RandomInt {
@@ -119,7 +174,9 @@ function createFakeDependencies(
   const dependencies: RotationDependencies = {
     connect: async (uri) => {
       state.connectedUri = uri;
-      return { name: new URL(uri).pathname.replace(/^\//, "") };
+      return {
+        name: state.connectedDatabaseName ?? databaseNameFromUri(uri),
+      };
     },
     disconnect: async () => {
       state.disconnected = true;
@@ -147,7 +204,10 @@ function createFakeDependencies(
     },
     now: () => new Date("2026-01-01T00:00:00.000Z"),
     updatePassword: async ({ id, loginId, passwordHash }) => {
-      if (state.failUpdateAt !== null && state.updates.length === state.failUpdateAt) {
+      if (
+        state.failUpdateAt !== null &&
+        state.updates.length === state.failUpdateAt
+      ) {
         throw new Error("Simulated database update failure");
       }
       const user = state.users.find(
@@ -171,156 +231,387 @@ function createFakeDependencies(
 }
 
 function testingOptions(apply: boolean = false): RotationOptions {
-  return parseRotationOptions(apply ? ["--apply"] : [], {
-    TESTING_MONGODB_URI: TESTING_URI,
-    PRODUCTION_MONGODB_URI: PRODUCTION_URI,
-  });
+  return parseRotationOptions(
+    apply ? ["--target", "testing", "--apply"] : ["--target", "testing"],
+    env(),
+  );
 }
 
-function assertNoPlaintextPasswordsLogged(
-  state: FakeState,
-  passwords: readonly string[],
-): void {
-  for (const password of passwords) {
-    assert.ok(state.logs.every((line) => !line.includes(password)));
-  }
+function productionOptions(apply: boolean = false): RotationOptions {
+  const args = apply
+    ? ["--target", "production", "--apply", "--confirm", PRODUCTION_ROTATION_CONFIRMATION]
+    : ["--target", "production", "--confirm", PRODUCTION_ROTATION_CONFIRMATION];
+  return parseRotationOptions(args, env());
 }
 
-function assertAccountsUnchangedExceptPasswords(state: FakeState): void {
-  for (const loginId of ROTATION_LOGIN_IDS) {
-    const user = getUser(state, loginId);
-    assert.equal(user.loginId, loginId);
-    assert.equal(user.email, userEmail(loginId));
-    assert.equal(user.role, "admin");
-    assert.equal(user.isActive, true);
-    assert.notEqual(user.passwordHash, `old-hash-${loginId}`);
-  }
+function assertPasswordFormat(password: string): void {
+  assert.equal([...password].length, PASSWORD_LENGTH);
+  assert.equal(
+    (password.match(/[A-Za-z]/g) ?? []).length,
+    PASSWORD_ALPHABETIC_COUNT,
+  );
+  assert.equal((password.match(/[0-9]/g) ?? []).length, PASSWORD_DIGIT_COUNT);
+  assert.equal(
+    (password.match(/[^A-Za-z0-9]/g) ?? []).length,
+    PASSWORD_SPECIAL_COUNT,
+  );
+  assert.ok(
+    [...password].every(
+      (character) =>
+        PASSWORD_ALPHABET.includes(character) ||
+        PASSWORD_DIGITS.includes(character) ||
+        PASSWORD_SPECIAL_CHARACTERS.includes(character),
+    ),
+  );
 }
 
-describe("passphrase generation", () => {
-  it("uses deterministic cryptographic random selection to build a passphrase", () => {
-    const values = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-    let calls = 0;
-    const passphrase = generatePassphrase((maxExclusive) => {
-      const value = values[calls];
-      if (value === undefined) {
-        throw new Error("Unexpected random call");
-      }
-      calls += 1;
-      assert.ok(value >= 0 && value < maxExclusive);
-      return value;
-    });
-
-    assert.equal(
-      passphrase,
-      "amber-anchor-apple-arbor-atlas-aurora-678",
+function assertNoSecretsLogged(state: FakeState, passwords: readonly string[]): void {
+  const secrets = [...passwords, ...state.hashCalls];
+  for (const secret of secrets) {
+    assert.ok(
+      state.logs.every((line) => !line.includes(secret)),
+      "A password or hash was written to the log",
     );
-    assert.equal(calls, PASSPHRASE_WORD_COUNT + PASSPHRASE_DIGIT_COUNT);
-    assert.ok(PASSWORD_WORDS.length >= 256);
-    assert.equal(new Set(PASSWORD_WORDS).size, PASSWORD_WORDS.length);
-  });
+  }
+  assert.ok(state.logs.every((line) => !line.includes("eyJ")));
+}
 
-  it("generates seven unique passphrases with six words and three digits", () => {
-    const passphrases = generateUniquePassphrases(7, sequentialRandom());
+describe("password format", () => {
+  it("generates exactly three letters, three digits, and one special character", () => {
+    const passwords = Array.from({ length: 25 }, (_, index) =>
+      generatePassword(sequentialRandom(index * 7)),
+    );
 
-    assert.equal(passphrases.length, 7);
-    assert.equal(new Set(passphrases).size, 7);
-    assert.equal(new Set(PASSWORD_WORDS).size, PASSWORD_WORDS.length);
-
-    for (const passphrase of passphrases) {
-      const parts = passphrase.split("-");
-      assert.equal(parts.length, PASSPHRASE_WORD_COUNT + 1);
-      assert.equal(parts.length - 1, PASSPHRASE_WORD_COUNT);
-      assert.ok(parts.slice(0, -1).every((word) => PASSWORD_WORDS.includes(word as (typeof PASSWORD_WORDS)[number])));
-      const digits = parts[parts.length - 1];
-      assert.ok(digits !== undefined);
-      assert.equal(digits.length, PASSPHRASE_DIGIT_COUNT);
-      assert.match(digits, /^\d{3}$/);
+    for (const password of passwords) {
+      assertPasswordFormat(password);
     }
   });
 
-  it("aborts when unique passphrases cannot be generated", () => {
+  it("randomizes character positions", () => {
+    let calls = 0;
+    const identityShuffle: RandomInt = (maxExclusive) => {
+      const value = calls < PASSWORD_LENGTH ? 0 : maxExclusive - 1;
+      calls += 1;
+      return value;
+    };
+
+    const grouped = generatePassword(identityShuffle);
+    const reversed = generatePassword(() => 0);
+
+    assertPasswordFormat(grouped);
+    assertPasswordFormat(reversed);
+    assert.match(grouped, /^[A-Za-z]{3}[0-9]{3}[^A-Za-z0-9]$/);
+    assert.doesNotMatch(reversed, /^[A-Za-z]{3}[0-9]{3}[^A-Za-z0-9]$/);
+    assert.ok(
+      PASSWORD_SPECIAL_CHARACTERS.includes(
+        reversed[PASSWORD_LENGTH - 2] ?? "",
+      ),
+    );
+    assert.notEqual(grouped, reversed);
+  });
+
+  it("uses node:crypto.randomInt instead of Math.random by default", () => {
+    const requestedMaximums: number[] = [];
+    const randomSpy = mock.method(crypto, "randomInt", (maxExclusive: number) => {
+      requestedMaximums.push(maxExclusive);
+      return 0;
+    });
+    let mathCalls = 0;
+    const mathSpy = mock.method(Math, "random", () => {
+      mathCalls += 1;
+      return 0.5;
+    });
+
+    try {
+      const password = generatePassword();
+      assertPasswordFormat(password);
+      assert.equal(
+        randomSpy.mock.callCount(),
+        PASSWORD_LENGTH + PASSWORD_LENGTH - 1,
+      );
+      assert.equal(mathCalls, 0);
+      assert.deepEqual(requestedMaximums, [
+        ...Array(PASSWORD_ALPHABETIC_COUNT).fill(PASSWORD_ALPHABET.length),
+        ...Array(PASSWORD_DIGIT_COUNT).fill(PASSWORD_DIGITS.length),
+        ...Array(PASSWORD_SPECIAL_COUNT).fill(
+          PASSWORD_SPECIAL_CHARACTERS.length,
+        ),
+        ...Array.from(
+          { length: PASSWORD_LENGTH - 1 },
+          (_, index) => PASSWORD_LENGTH - index,
+        ),
+      ]);
+    } finally {
+      randomSpy.mock.restore();
+      mathSpy.mock.restore();
+    }
+  });
+
+  it("generates seven unique passwords", () => {
+    const passwords = generateUniquePasswords(
+      ROTATION_LOGIN_IDS.length,
+      sequentialRandom(),
+    );
+
+    assert.equal(passwords.length, ROTATION_LOGIN_IDS.length);
+    assert.equal(new Set(passwords).size, ROTATION_LOGIN_IDS.length);
+    for (const password of passwords) {
+      assertPasswordFormat(password);
+    }
+  });
+
+  it("aborts when unique passwords cannot be generated", () => {
     assert.throws(
-      () => generateUniquePassphrases(7, () => 0),
+      () => generateUniquePasswords(ROTATION_LOGIN_IDS.length, () => 0),
       (error: unknown) =>
         error instanceof RotationConflictError &&
-        error.message.includes("Unable to generate unique admin passphrases"),
+        error.message.includes("Unable to generate unique admin passwords"),
     );
   });
 });
 
-describe("rotation options", () => {
-  it("uses only TESTING_MONGODB_URI and rejects production configuration", () => {
-    const options = parseRotationOptions([], {
-      TESTING_MONGODB_URI: TESTING_URI,
-      PRODUCTION_MONGODB_URI: PRODUCTION_URI,
-      MONGODB_URI: PRODUCTION_URI,
-    });
-    assert.equal(options.target, "testing");
-    assert.equal(options.uri, TESTING_URI);
-    assert.equal(options.databaseName, "venture_craft_testing");
+describe("target selection and isolation", () => {
+  it("requires an explicit --target and never falls back to MONGODB_URI", () => {
+    for (const args of [[], ["--apply"], ["--target="], ["--target", "staging"]]) {
+      assert.throws(
+        () => parseRotationOptions(args, env()),
+        (error: unknown) =>
+          error instanceof SeedConfigError &&
+          error.message.includes("--target must be either testing or production"),
+      );
+    }
+
+    const testing = parseRotationOptions(
+      ["--target", "testing"],
+      env({ MONGODB_URI: PRODUCTION_URI }),
+    );
+    assert.equal(testing.target, "testing");
+    assert.equal(testing.databaseName, TESTING_DB);
+    assert.equal(testing.uri, TESTING_URI);
+    assert.equal(testing.apply, false);
 
     assert.throws(
       () =>
-        parseRotationOptions(["--target", "production"], {
-          TESTING_MONGODB_URI: TESTING_URI,
-          PRODUCTION_MONGODB_URI: PRODUCTION_URI,
-        }),
+        parseRotationOptions(
+          ["--target", "testing"],
+          env({ TESTING_MONGODB_URI: undefined, MONGODB_URI: TESTING_URI }),
+        ),
       (error: unknown) =>
         error instanceof SeedConfigError &&
-        error.message.includes("only supports the testing target"),
+        error.message.includes("TESTING_MONGODB_URI is required"),
     );
 
     assert.throws(
-      () => parseRotationOptions([], { TESTING_MONGODB_URI: PRODUCTION_URI }),
-      SeedConfigError,
-    );
-
-    assert.equal(databaseNameFromUri(TESTING_URI), "venture_craft_testing");
-    assert.throws(() =>
-      assertConnectedDatabaseName("student_ranking", "venture_craft_testing"),
+      () =>
+        parseRotationOptions(
+          [
+            "--target",
+            "production",
+            "--confirm",
+            PRODUCTION_ROTATION_CONFIRMATION,
+          ],
+          env({ PRODUCTION_MONGODB_URI: undefined, MONGODB_URI: PRODUCTION_URI }),
+        ),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes("PRODUCTION_MONGODB_URI is required"),
     );
   });
 
-  it("rejects unsupported arguments", () => {
+  it("never lets the testing target connect to production", async () => {
     assert.throws(
-      () => parseRotationOptions(["--confirm", "anything"], { TESTING_MONGODB_URI: TESTING_URI }),
-      SeedConfigError,
+      () =>
+        parseRotationOptions(
+          ["--target", "testing"],
+          env({ TESTING_MONGODB_URI: PRODUCTION_URI }),
+        ),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes(`TESTING_MONGODB_URI must target ${TESTING_DB}`),
+    );
+
+    const state = newState();
+    seedAllAccounts(state);
+
+    await assert.rejects(
+      rotateAdminPasswords(
+        { ...testingOptions(true), uri: PRODUCTION_URI },
+        createFakeDependencies(state),
+      ),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes(`TESTING_MONGODB_URI must target ${TESTING_DB}`),
+    );
+    assert.equal(state.connectedUri, null);
+
+    state.connectedDatabaseName = PRODUCTION_DB;
+    await assert.rejects(
+      rotateAdminPasswords(testingOptions(true), createFakeDependencies(state)),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes(
+          `Connected database ${PRODUCTION_DB} does not match expected ${TESTING_DB}`,
+        ),
+    );
+    assert.equal(state.connectedUri, TESTING_URI);
+    assert.equal(state.findCalls, 0);
+    assert.equal(state.randomCalls, 0);
+    assert.equal(state.hashCalls.length, 0);
+    assert.equal(state.exportData, null);
+    assert.equal(state.updates.length, 0);
+    assert.equal(state.disconnected, true);
+  });
+
+  it("never lets the production target connect to testing", async () => {
+    assert.throws(
+      () =>
+        parseRotationOptions(
+          [
+            "--target",
+            "production",
+            "--confirm",
+            PRODUCTION_ROTATION_CONFIRMATION,
+          ],
+          env({ PRODUCTION_MONGODB_URI: TESTING_URI }),
+        ),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes(`PRODUCTION_MONGODB_URI must target ${PRODUCTION_DB}`),
+    );
+
+    const state = newState();
+    seedAllAccounts(state);
+
+    await assert.rejects(
+      rotateAdminPasswords(
+        { ...productionOptions(true), uri: TESTING_URI },
+        createFakeDependencies(state),
+      ),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes(`PRODUCTION_MONGODB_URI must target ${PRODUCTION_DB}`),
+    );
+    assert.equal(state.connectedUri, null);
+
+    state.connectedDatabaseName = TESTING_DB;
+    await assert.rejects(
+      rotateAdminPasswords(productionOptions(true), createFakeDependencies(state)),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes(
+          `Connected database ${TESTING_DB} does not match expected ${PRODUCTION_DB}`,
+        ),
+    );
+    assert.equal(state.findCalls, 0);
+    assert.equal(state.exportData, null);
+    assert.equal(state.updates.length, 0);
+    assert.equal(state.disconnected, true);
+  });
+
+  it("requires the exact production confirmation phrase", async () => {
+    const rejectedArguments = [
+      ["--target", "production", "--apply"],
+      ["--target", "production"],
+      [
+        "--target",
+        "production",
+        "--apply",
+        "--confirm",
+        "SEED PRODUCTION ADMINS",
+      ],
+      [
+        "--target",
+        "production",
+        "--apply",
+        "--confirm",
+        "rotate production admin passwords",
+      ],
+      [
+        "--target",
+        "production",
+        "--apply",
+        "--confirm",
+        "ROTATE PRODUCTION ADMIN PASSWORDS ",
+      ],
+    ];
+
+    for (const args of rejectedArguments) {
+      assert.throws(
+        () => parseRotationOptions(args, env()),
+        (error: unknown) =>
+          error instanceof SeedConfigError &&
+          error.message.includes(
+            `Production password rotation requires --confirm "${PRODUCTION_ROTATION_CONFIRMATION}"`,
+          ),
+      );
+    }
+
+    const options = parseRotationOptions(
+      ["--target", "production", "--apply", "--confirm", PRODUCTION_ROTATION_CONFIRMATION],
+      env(),
+    );
+    assert.equal(options.confirmation, PRODUCTION_ROTATION_CONFIRMATION);
+    assert.equal(options.apply, true);
+
+    const state = newState();
+    seedAllAccounts(state);
+    await assert.rejects(
+      rotateAdminPasswords(
+        {
+          target: "production",
+          databaseName: PRODUCTION_DB,
+          uri: PRODUCTION_URI,
+          apply: true,
+          confirmation: undefined,
+        },
+        createFakeDependencies(state),
+      ),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes("Production password rotation requires --confirm"),
+    );
+    assert.equal(state.connectedUri, null);
+    assert.equal(state.updates.length, 0);
+  });
+
+  it("rejects unknown, duplicate, and incomplete arguments", () => {
+    assert.throws(
+      () => parseRotationOptions(["--dry-run"], env()),
+      (error: unknown) => error instanceof SeedConfigError && error.message.includes("Unknown argument"),
     );
     assert.throws(
-      () => parseRotationOptions(["--apply", "--apply"], { TESTING_MONGODB_URI: TESTING_URI }),
-      SeedConfigError,
+      () => parseRotationOptions(["--target", "testing", "--target", "production"], env()),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes("--target was provided more than once"),
+    );
+    assert.throws(
+      () => parseRotationOptions(["--target", "testing", "--apply", "--apply"], env()),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes("--apply was provided more than once"),
+    );
+    assert.throws(
+      () => parseRotationOptions(["--target"], env()),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes("--target requires a value"),
+    );
+    assert.throws(
+      () => parseRotationOptions(["--target", "testing", "--confirm"], env()),
+      (error: unknown) =>
+        error instanceof SeedConfigError &&
+        error.message.includes("--confirm requires a value"),
     );
   });
 });
 
 describe("admin password rotation", () => {
-  it("aborts before connecting when the URI targets production", async () => {
-    const state = newState();
-    const options: RotationOptions = {
-      target: "testing",
-      databaseName: "venture_craft_testing",
-      uri: PRODUCTION_URI,
-      apply: true,
-    };
-
-    await assert.rejects(
-      rotateAdminPasswords(options, createFakeDependencies(state)),
-      (error: unknown) =>
-        error instanceof SeedConfigError &&
-        error.message.includes("TESTING_MONGODB_URI must target venture_craft_testing"),
-    );
-
-    assert.equal(state.connectedUri, null);
-    assert.equal(state.findCalls, 0);
-    assert.equal(state.hashCalls.length, 0);
-    assert.equal(state.exportData, null);
-    assert.equal(state.updates.length, 0);
-  });
-
   it("dry-runs validation without generating, exporting, or updating", async () => {
     const state = newState();
     seedAllAccounts(state);
+    seedNonAdminAccounts(state);
+    const before = snapshotUsers(state);
 
     const result = await rotateAdminPasswords(
       testingOptions(false),
@@ -337,10 +628,31 @@ describe("admin password rotation", () => {
     assert.equal(state.exportData, null);
     assert.equal(state.updates.length, 0);
     assert.equal(state.disconnected, true);
-    assert.ok(state.logs.some((line) => line.includes("Dry run: 7 admin accounts validated")));
-    for (const loginId of ROTATION_LOGIN_IDS) {
-      assert.equal(getUser(state, loginId).passwordHash, `old-hash-${loginId}`);
-    }
+    assert.deepEqual(state.users, before);
+    assert.ok(
+      state.logs.some((line) =>
+        line.includes(`Dry run: ${ROTATION_LOGIN_IDS.length} admin accounts validated`),
+      ),
+    );
+  });
+
+  it("dry-runs production validation without generating, exporting, or updating", async () => {
+    const state = newState();
+    seedAllAccounts(state);
+    const before = snapshotUsers(state);
+
+    const result = await rotateAdminPasswords(
+      productionOptions(false),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, false);
+    assert.equal(state.connectedUri, PRODUCTION_URI);
+    assert.equal(state.randomCalls, 0);
+    assert.equal(state.hashCalls.length, 0);
+    assert.equal(state.exportData, null);
+    assert.equal(state.updates.length, 0);
+    assert.deepEqual(state.users, before);
   });
 
   it("aborts account validation failures before any write", async () => {
@@ -365,12 +677,20 @@ describe("admin password rotation", () => {
         message: "Account vc-akash is not active",
       },
       {
-        name: "non-admin account",
+        name: "judge in an admin slot",
         prepare: (state) => {
           seedAllAccounts(state);
           getUser(state, "vc-harsha").role = "judge";
         },
         message: "Account vc-harsha is not an admin",
+      },
+      {
+        name: "participant in an admin slot",
+        prepare: (state) => {
+          seedAllAccounts(state);
+          getUser(state, "vc-adarsh").role = "participant";
+        },
+        message: "Account vc-adarsh is not an admin",
       },
       {
         name: "duplicate account",
@@ -385,6 +705,7 @@ describe("admin password rotation", () => {
     for (const scenario of scenarios) {
       const state = newState();
       scenario.prepare(state);
+      const before = snapshotUsers(state);
 
       await assert.rejects(
         rotateAdminPasswords(testingOptions(true), createFakeDependencies(state)),
@@ -398,12 +719,42 @@ describe("admin password rotation", () => {
       assert.equal(state.exportData, null);
       assert.equal(state.updates.length, 0);
       assert.equal(state.disconnected, true);
+      assert.deepEqual(state.users, before);
     }
   });
 
-  it("hashes seven unique passphrases, exports them, and updates only password hashes", async () => {
+  it("never modifies judges or participants", async () => {
     const state = newState();
     seedAllAccounts(state);
+    state.users.push(...makeNonAdminUsers());
+    const before = snapshotUsers(state);
+
+    const result = await rotateAdminPasswords(
+      testingOptions(true),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, true);
+    assert.deepEqual(
+      state.updates.map((update) => update.loginId),
+      [...ROTATION_LOGIN_IDS],
+    );
+    for (const nonAdmin of makeNonAdminUsers()) {
+      assert.deepEqual(getUser(state, nonAdmin.loginId), nonAdmin);
+      assert.ok(
+        !state.updates.some((update) => update.loginId === nonAdmin.loginId),
+      );
+    }
+    for (const user of before.filter((user) => user.role !== "admin")) {
+      const after = getUser(state, user.loginId);
+      assert.deepEqual(after, user);
+    }
+  });
+
+  it("hashes seven unique passwords, exports them, and changes only passwordHash", async () => {
+    const state = newState();
+    seedAllAccounts(state);
+    const before = snapshotUsers(state);
 
     const result = await rotateAdminPasswords(
       testingOptions(true),
@@ -415,21 +766,30 @@ describe("admin password rotation", () => {
     assert.equal(result.exportPath, state.exportPath);
     assert.equal(state.hashCalls.length, 7);
     assert.equal(new Set(state.hashCalls).size, 7);
+    for (const password of state.hashCalls) {
+      assertPasswordFormat(password);
+    }
     assert.equal(state.updates.length, 7);
     assert.equal(state.disconnected, true);
-    assertNoPlaintextPasswordsLogged(state, state.hashCalls);
-    assertAccountsUnchangedExceptPasswords(state);
+    assertNoSecretsLogged(state, state.hashCalls);
 
     for (let index = 0; index < ROTATION_LOGIN_IDS.length; index += 1) {
       const loginId = ROTATION_LOGIN_IDS[index];
       const password = state.hashCalls[index];
       const update = state.updates[index];
-      if (!loginId || !password || !update) {
+      const previous = before[index];
+      if (!loginId || !password || !update || !previous) {
         throw new Error("Missing rotation record");
       }
       assert.equal(update.loginId, loginId);
       assert.equal(update.passwordHash, `hashed:${password}`);
-      assert.equal(getUser(state, loginId).passwordHash, `hashed:${password}`);
+      const current = getUser(state, loginId);
+      assert.equal(current.passwordHash, `hashed:${password}`);
+      assert.notEqual(current.passwordHash, previous.passwordHash);
+      assert.deepEqual(current, {
+        ...previous,
+        passwordHash: current.passwordHash,
+      });
     }
 
     const exportData = state.exportData;
@@ -437,17 +797,8 @@ describe("admin password rotation", () => {
       throw new Error("Credential export was not written");
     }
     assert.equal(exportData.target, "testing");
-    assert.equal(exportData.databaseName, "venture_craft_testing");
+    assert.equal(exportData.databaseName, TESTING_DB);
     assert.equal(exportData.accounts.length, 7);
-    assert.ok(
-      exportData.accounts.every(
-        (account) =>
-          account.passwordStatus === "rotated" &&
-          typeof account.password === "string" &&
-          account.role === "admin" &&
-          account.isActive === true,
-      ),
-    );
     assert.deepEqual(
       exportData.accounts.map((account) => account.password),
       state.hashCalls,
@@ -460,24 +811,70 @@ describe("admin password rotation", () => {
       exportData.accounts.map((account) => account.loginId),
       [...ROTATION_LOGIN_IDS],
     );
+    assert.ok(
+      exportData.accounts.every(
+        (account) =>
+          account.passwordStatus === "rotated" &&
+          account.role === "admin" &&
+          account.isActive === true,
+      ),
+    );
+  });
+
+  it("applies production rotation with the confirmation phrase and exports under production", async () => {
+    const state = newState();
+    seedAllAccounts(state);
+    const before = snapshotUsers(state);
+
+    const result = await rotateAdminPasswords(
+      productionOptions(true),
+      createFakeDependencies(state),
+    );
+
+    assert.equal(result.applied, true);
+    assert.equal(state.connectedUri, PRODUCTION_URI);
+    assert.equal(state.hashCalls.length, 7);
+    assert.equal(state.updates.length, 7);
+    assertNoSecretsLogged(state, state.hashCalls);
+
+    const exportData = state.exportData;
+    if (!exportData) {
+      throw new Error("Credential export was not written");
+    }
+    assert.equal(exportData.target, "production");
+    assert.equal(exportData.databaseName, PRODUCTION_DB);
+    assert.match(exportData.notice, /production admin accounts/);
+    for (let index = 0; index < before.length; index += 1) {
+      const previous = before[index];
+      const loginId = previous?.loginId;
+      if (!previous || !loginId) {
+        throw new Error("Missing rotation record");
+      }
+      const current = getUser(state, loginId);
+      assert.deepEqual(current, {
+        ...previous,
+        passwordHash: current.passwordHash,
+      });
+    }
   });
 
   it("does not update passwords when credential export fails", async () => {
     const state = newState();
     seedAllAccounts(state);
+    seedNonAdminAccounts(state);
     state.failExport = new Error("Simulated export failure");
+    const before = snapshotUsers(state);
 
     await assert.rejects(
       rotateAdminPasswords(testingOptions(true), createFakeDependencies(state)),
-      (error: unknown) => error instanceof Error && error.message.includes("Simulated export failure"),
+      (error: unknown) =>
+        error instanceof Error && error.message.includes("Simulated export failure"),
     );
 
     assert.equal(state.exportData, null);
     assert.equal(state.updates.length, 0);
     assert.equal(state.disconnected, true);
-    for (const loginId of ROTATION_LOGIN_IDS) {
-      assert.equal(getUser(state, loginId).passwordHash, `old-hash-${loginId}`);
-    }
+    assert.deepEqual(state.users, before);
   });
 
   it("leaves a complete credential export when a database update fails", async () => {
@@ -487,7 +884,8 @@ describe("admin password rotation", () => {
 
     await assert.rejects(
       rotateAdminPasswords(testingOptions(true), createFakeDependencies(state)),
-      (error: unknown) => error instanceof Error && error.message.includes("Simulated database update failure"),
+      (error: unknown) =>
+        error instanceof Error && error.message.includes("Simulated database update failure"),
     );
 
     assert.equal(state.updates.length, 2);
@@ -497,38 +895,34 @@ describe("admin password rotation", () => {
       throw new Error("Credential export was not written");
     }
     assert.equal(exportData.accounts.length, 7);
-    assert.ok(
-      exportData.accounts.every(
-        (account) =>
-          account.passwordStatus === "rotated" && typeof account.password === "string",
-      ),
-    );
-    assertNoPlaintextPasswordsLogged(state, state.hashCalls);
+    assertNoSecretsLogged(state, state.hashCalls);
   });
 });
 
 describe("password rotation export", () => {
-  it("writes a single JSON file atomically", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "admin-rotation-"));
+  it("writes separate environment files with the target in the filename", async () => {
+    for (const target of ["testing", "production"] as const) {
+      const directory = await mkdtemp(path.join(tmpdir(), "admin-rotation-"));
 
-    try {
-      const exportData: PasswordRotationExport = {
-        target: "testing",
-        databaseName: "venture_craft_testing",
-        generatedAt: "2026-01-01T00:00:00.000Z",
-        notice: "test",
-        accounts: [],
-      };
+      try {
+        const exportData: PasswordRotationExport = {
+          target,
+          databaseName: target === "testing" ? TESTING_DB : PRODUCTION_DB,
+          generatedAt: "2026-01-01T00:00:00.000Z",
+          notice: "test",
+          accounts: [],
+        };
 
-      const filePath = await writePasswordRotationExport(exportData, directory);
-      const files = await readdir(directory);
-      const contents = await readFile(filePath, "utf8");
+        const filePath = await writePasswordRotationExport(exportData, directory);
+        const files = await readdir(directory);
+        const contents = await readFile(filePath, "utf8");
 
-      assert.equal(files.length, 1);
-      assert.ok(files[0]?.startsWith("admin-password-rotation-testing-"));
-      assert.deepEqual(JSON.parse(contents), exportData);
-    } finally {
-      await rm(directory, { recursive: true, force: true });
+        assert.equal(files.length, 1);
+        assert.ok(files[0]?.startsWith(`admin-password-rotation-${target}-`));
+        assert.deepEqual(JSON.parse(contents), exportData);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
     }
   });
 });

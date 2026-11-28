@@ -13,6 +13,7 @@
     "test": "tsc -p tsconfig.test.json && tsx --test test/**/*.test.ts",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
     "seed:admins": "tsx src/scripts/seed-admins.ts",
+    "seed:testing-accounts": "tsx src/scripts/seed-testing-accounts.ts",
     "rotate:admin-passwords": "tsx src/scripts/rotate-admin-passwords.ts",
     "verify:atlas": "tsx src/scripts/verify-workflows.ts"
   },

@@ -35,6 +35,7 @@ router.post(
 
 router.get(
   "/",
+  requireRole("admin"),
   validate({
     params: competitionIdParamsSchema,
     query: participantQuerySchema,

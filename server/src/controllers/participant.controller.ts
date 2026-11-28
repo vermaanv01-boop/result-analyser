@@ -1,6 +1,7 @@
 import type { NextFunction, Response } from "express";
 import type { ValidatedRequest } from "../middleware/validate";
 import {
+  assertParticipantDetailAccess,
   createParticipant,
   getParticipantById,
   getParticipants,
@@ -66,6 +67,7 @@ export async function getParticipantHandler(
       req.params.competitionId,
       req.params.participantId,
     );
+    await assertParticipantDetailAccess(req.user!, participant);
     res.status(200).json({ participant });
   } catch (error) {
     next(error);
